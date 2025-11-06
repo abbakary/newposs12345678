@@ -32,8 +32,20 @@
     </div>
   </div>
 
+  {% if order.overrun_reason %}
+  <div class="row g-3 mb-3">
+    <div class="col-12">
+      <div class="alert alert-warning">
+        <strong>Delay note:</strong> {{ order.overrun_reason }}
+        <div class="small text-muted mt-1">
+          Reported by {% if order.overrun_reported_by %}{{ order.overrun_reported_by.get_full_name }}{% else %}System{% endif %} on {{ order.overrun_reported_at|date:'M d, Y H:i' }}
+        </div>
+      </div>
+    </div>
   </div>
+  {% endif %}
 
+  </div>
 
 {% if order.type == 'inquiry' %}
   <!-- Enhanced Inquiry Details Section -->
