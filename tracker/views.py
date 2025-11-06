@@ -306,71 +306,89 @@ def dashboard(request: HttpRequest):
         # Count of out of stock items
         out_of_stock_count = InventoryItem.objects.filter(quantity=0).count()
         
-        # Revenue aggregation from extracted documents
+        # Revenue aggregation from Invoices and Payments (prefer Invoice records over raw document extractions)
         from decimal import Decimal
         from django.db.models import Sum
-        from tracker.models import DocumentExtraction
+        from tracker.models import Invoice, InvoicePayment, DocumentExtraction
 
-        total_revenue = Decimal('0')
-        revenue_this_month = Decimal('0')
+        total_revenue = Decimal('0')  # Cash received (payments)
+        revenue_this_month = Decimal('0')  # Payments this month
         total_vat = Decimal('0')
         vat_this_month = Decimal('0')
         total_gross = Decimal('0')
         gross_this_month = Decimal('0')
+        total_invoiced = Decimal('0')  # Accrual: invoices issued
+        invoiced_this_month = Decimal('0')
         revenue_by_branch = {}
+        revenue_by_branch_tsh = {}
         try:
-            sums = DocumentExtraction.objects.aggregate(
-                total_net=Sum('net_value'),
-                total_vat=Sum('vat_amount'),
-                total_gross=Sum('gross_value')
-            )
-            if sums.get('total_net'):
-                total_revenue = Decimal(sums.get('total_net'))
-            if sums.get('total_vat'):
-                total_vat = Decimal(sums.get('total_vat'))
-            if sums.get('total_gross'):
-                total_gross = Decimal(sums.get('total_gross'))
+            # Scope invoices to user's branch/permissions
+            invoices_qs = scope_queryset(Invoice.objects.all(), request.user, request)
 
+            # Total invoiced (sum of invoice amounts regardless of payment status)
+            inv_sums = invoices_qs.aggregate(total_invoiced=Sum('total_amount'), total_vat=Sum('tax_amount'))
+            if inv_sums.get('total_invoiced'):
+                total_invoiced = Decimal(inv_sums.get('total_invoiced'))
+            if inv_sums.get('total_vat'):
+                total_vat = Decimal(inv_sums.get('total_vat'))
+
+            # Payments (cash) - sum of payment amounts for invoices in scope
+            payments_qs = InvoicePayment.objects.filter(invoice__in=invoices_qs)
+            pay_sums = payments_qs.aggregate(total_paid=Sum('amount'))
+            if pay_sums.get('total_paid'):
+                total_revenue = Decimal(pay_sums.get('total_paid'))
+
+            # Month ranges
             month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            month_sums = DocumentExtraction.objects.filter(document__uploaded_at__gte=month_start).aggregate(
-                month_net=Sum('net_value'),
-                month_vat=Sum('vat_amount'),
-                month_gross=Sum('gross_value')
-            )
-            if month_sums.get('month_net'):
-                revenue_this_month = Decimal(month_sums.get('month_net'))
-            if month_sums.get('month_vat'):
-                vat_this_month = Decimal(month_sums.get('month_vat'))
-            if month_sums.get('month_gross'):
-                gross_this_month = Decimal(month_sums.get('month_gross'))
 
-            # Revenue by branch and currency (aggregate net_value grouped by document.order.branch and currency)
-            rows = DocumentExtraction.objects.select_related('document__order__branch').values_list('net_value', 'extracted_currency', 'document__order__branch__name')
-            for net_val, currency, branch_name in rows:
+            inv_month_sums = invoices_qs.filter(invoice_date__gte=month_start).aggregate(month_invoiced=Sum('total_amount'), month_vat=Sum('tax_amount'))
+            if inv_month_sums.get('month_invoiced'):
+                invoiced_this_month = Decimal(inv_month_sums.get('month_invoiced'))
+            if inv_month_sums.get('month_vat'):
+                vat_this_month = Decimal(inv_month_sums.get('month_vat'))
+
+            pay_month_sums = payments_qs.filter(payment_date__gte=month_start).aggregate(month_paid=Sum('amount'))
+            if pay_month_sums.get('month_paid'):
+                revenue_this_month = Decimal(pay_month_sums.get('month_paid'))
+
+            # Gross values: if invoices store gross separately use that, otherwise approximate as total_amount
+            total_gross = total_invoiced
+            gross_this_month = invoiced_this_month
+
+            # Revenue by branch (group invoices total_amount by branch name)
+            rows = invoices_qs.values_list('total_amount', 'branch__name')
+            for total_amt, branch_name in rows:
                 try:
-                    amount = Decimal(net_val) if net_val is not None else Decimal('0')
+                    amount = Decimal(total_amt) if total_amt is not None else Decimal('0')
                 except Exception:
                     continue
-                cur = (currency or '').strip().upper()
                 b = branch_name or 'Unassigned'
                 if b not in revenue_by_branch:
-                    revenue_by_branch[b] = {}
-                if cur not in revenue_by_branch[b]:
-                    revenue_by_branch[b][cur] = Decimal('0')
-                revenue_by_branch[b][cur] += amount
+                    revenue_by_branch[b] = Decimal('0')
+                revenue_by_branch[b] += amount
 
-            # Build TSHS-specific view
-            revenue_by_branch_tsh = {}
-            for b, cols in revenue_by_branch.items():
-                amount = cols.get('TSHS') or cols.get('TSH') or cols.get('TZS') or Decimal('0')
-                revenue_by_branch_tsh[b] = amount
-        except Exception:
+            # Build TSHS-specific view using branch totals (no currency on Invoice model; DocumentExtraction fallback below)
+            for b, amt in revenue_by_branch.items():
+                revenue_by_branch_tsh[b] = amt
+
+            # Fallback/incremental: include DocumentExtraction totals ONLY for records not tied to an Invoice
+            try:
+                de_sums = DocumentExtraction.objects.filter(document__order__isnull=True).aggregate(total_net=Sum('net_value'))
+                if de_sums.get('total_net'):
+                    total_revenue += Decimal(de_sums.get('total_net'))
+            except Exception:
+                pass
+
+        except Exception as e:
+            logger.error(f"Error aggregating revenue from invoices/payments: {e}")
             total_revenue = Decimal('0')
             revenue_this_month = Decimal('0')
             total_vat = Decimal('0')
             vat_this_month = Decimal('0')
             total_gross = Decimal('0')
             gross_this_month = Decimal('0')
+            total_invoiced = Decimal('0')
+            invoiced_this_month = Decimal('0')
             revenue_by_branch = {}
             revenue_by_branch_tsh = {}
 
@@ -387,8 +405,11 @@ def dashboard(request: HttpRequest):
             'new_customers_this_month': new_customers_this_month,
             'pending_inquiries_count': pending_inquiries_count,
             'average_order_value': average_order_value,
-            'total_revenue': total_revenue,
-            'revenue_this_month': revenue_this_month,
+            'total_revenue': total_revenue,            # Cash received (payments)
+            'total_paid': total_revenue,
+            'revenue_this_month': revenue_this_month,  # Payments this month
+            'total_invoiced': total_invoiced,          # Accrual total (invoices issued)
+            'invoiced_this_month': invoiced_this_month,
             'total_vat': total_vat,
             'vat_this_month': vat_this_month,
             'total_gross': total_gross,
@@ -3029,6 +3050,34 @@ def complete_order(request: HttpRequest, pk: int):
             return ''
 
     # If signature file missing but signature_data exists, decode it into an uploaded file
+    # First: enforce overrun reason if ETA exceeded. Accept overrun_reason from POST and save it before proceeding.
+    try:
+        # Fetch overrun reason from POST (either form field or json body fallback)
+        overrun_reason_input = request.POST.get('overrun_reason') or request.POST.get('delay_reason') or None
+    except Exception:
+        overrun_reason_input = None
+
+    try:
+        reference_time = o.started_at or o.created_at or timezone.now()
+        elapsed_minutes_check = int(((timezone.now() - reference_time).total_seconds()) // 60)
+    except Exception:
+        elapsed_minutes_check = None
+
+    if o.type == 'service' and o.estimated_duration and elapsed_minutes_check is not None:
+        try:
+            if elapsed_minutes_check > int(o.estimated_duration):
+                # Overrun happened. If reason provided in the completing POST, save it; otherwise require it.
+                if overrun_reason_input:
+                    o.overrun_reason = overrun_reason_input
+                    o.overrun_reported_at = timezone.now()
+                    o.overrun_reported_by = request.user
+                    o.save(update_fields=['overrun_reason','overrun_reported_at','overrun_reported_by'])
+                elif not o.overrun_reason:
+                    messages.error(request, 'Order has exceeded estimated time. Please provide a reason before completing.')
+                    return redirect('tracker:order_detail', pk=o.id)
+        except Exception:
+            pass
+
     if not sig and sig_data.startswith('data:image/') and ';base64,' in sig_data:
         try:
             header, b64 = sig_data.split(';base64,', 1)

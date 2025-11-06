@@ -521,6 +521,33 @@ def started_order_detail(request, order_id):
     return render(request, 'tracker/started_order_detail.html', context)
 
 
+@require_http_methods(["POST"])
+@login_required
+def api_record_overrun_reason(request, order_id):
+    """Record an overrun/delay reason for an order (AJAX).
+    Expects JSON: { "reason": "text" }
+    Saves overrun_reason, overrun_reported_at, overrun_reported_by on the Order.
+    Returns { success: true }
+    """
+    try:
+        data = json.loads(request.body)
+        reason = (data.get('reason') or '').strip()
+        if not reason:
+            return JsonResponse({'success': False, 'error': 'Reason is required'}, status=400)
+        user_branch = get_user_branch(request.user)
+        order = get_object_or_404(Order, id=order_id, branch=user_branch)
+        order.overrun_reason = reason
+        order.overrun_reported_at = timezone.now()
+        order.overrun_reported_by = request.user
+        order.save(update_fields=['overrun_reason','overrun_reported_at','overrun_reported_by'])
+        return JsonResponse({'success': True})
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.error(f"Error recording overrun reason for order {order_id}: {e}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
 @login_required
 @require_http_methods(["POST"])
 def api_apply_extraction_to_order(request):

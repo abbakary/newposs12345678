@@ -73,18 +73,45 @@
               <i class="fa fa-file-upload me-2"></i>Upload Invoice
             </button>
 
+            <!-- Create Invoice from this order -->
+            <a href="{% url 'tracker:invoice_create_from_order' order_id=order.id %}" class="btn btn-primary btn-lg">
+              <i class="fa fa-plus me-2"></i>Create Invoice
+            </a>
+
             <!-- Edit Order Details (services) -->
             <button type="button" id="editOrderDetailsBtn" class="btn btn-outline-primary btn-lg" data-bs-toggle="modal" data-bs-target="#editOrderDetailsModal">
               <i class="fa fa-list me-2"></i>Edit Order Details
             </button>
 
-            <form method="post" class="d-inline m-0">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="complete_order">
-              <button type="submit" class="btn btn-success btn-lg" onclick="return confirm('Complete this order?')">
-                <i class="fa fa-check me-2"></i>Complete Order
-              </button>
-            </form>
+            <!-- Complete flow: require overrun reason if ETA exceeded, then redirect to signature/complete page -->
+            <button type="button" id="completeOrderBtn" class="btn btn-success btn-lg">
+              <i class="fa fa-check me-2"></i>Complete Order
+            </button>
+
+            <!-- Overrun Reason Modal -->
+            <div class="modal fade" id="overrunReasonModal" tabindex="-1">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">Order Overrun Reason</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body">
+                    <p class="mb-2">This service order has exceeded the expected time. Please provide a reason before completing.</p>
+                    <div class="mb-3">
+                      <label class="form-label">Reason</label>
+                      <textarea id="overrunReasonInput" class="form-control" rows="4" placeholder="Explain why this order exceeded its ETA (required)"></textarea>
+                      <div id="overrunReasonError" class="text-danger mt-2" style="display:none;"></div>
+                    </div>
+                  </div>
+                  <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="saveOverrunReasonBtn" class="btn btn-warning">Save & Continue to Complete</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
 
           <!-- Edit Order Details Modal -->
@@ -704,4 +731,84 @@ function applyExtractionToOrder(extractionId) {
   });
 }
 </script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const completeBtn = document.getElementById('completeOrderBtn');
+  if (!completeBtn) return;
+
+  const orderStarted = {{ order.started_at|default:'None'|yesno:'true,false' }}; // placeholder, will compute below
+  const startedAtStr = '{{ order.started_at|date:"c" }}';
+  const estimatedDuration = {{ order.estimated_duration|default:'null' }};
+
+  function redirectToSignature(){
+    // Redirect to order detail page where signature/completion flow exists
+    window.location.href = '{% url "tracker:order_detail" pk=order.id %}';
+  }
+
+  completeBtn.addEventListener('click', function(e){
+    // If not a service order or no ETA configured, go straight to signature
+    const orderType = '{{ order.type|default:"" }}';
+    if (orderType !== 'service' || !estimatedDuration) {
+      redirectToSignature();
+      return;
+    }
+
+    if (!startedAtStr) { redirectToSignature(); return; }
+    const startedAt = new Date(startedAtStr);
+    const now = new Date();
+    const elapsedMinutes = Math.floor((now - startedAt) / 60000);
+
+    if (elapsedMinutes <= (Number(estimatedDuration) || 0)){
+      // Not exceeded
+      redirectToSignature();
+      return;
+    }
+
+    // Exceeded ETA -> show modal to collect reason
+    const overrunModalEl = document.getElementById('overrunReasonModal');
+    const overrunModal = new bootstrap.Modal(overrunModalEl);
+    overrunModal.show();
+  });
+
+  // Save reason handler
+  const saveBtn = document.getElementById('saveOverrunReasonBtn');
+  if (saveBtn){
+    saveBtn.addEventListener('click', function(){
+      const reason = document.getElementById('overrunReasonInput').value.trim();
+      const errEl = document.getElementById('overrunReasonError');
+      errEl.style.display = 'none';
+      if (!reason){ errEl.textContent = 'Please enter a reason for the delay.'; errEl.style.display = ''; return; }
+
+      // Post to API to save reason, then redirect to signature page
+      fetch('{% url "tracker:api_report_overrun" order_id=order.id %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ reason: reason })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success){
+          // close modal then redirect
+          const modalEl = document.getElementById('overrunReasonModal');
+          const modal = bootstrap.Modal.getInstance(modalEl);
+          if (modal) modal.hide();
+          redirectToSignature();
+        } else {
+          errEl.textContent = data.error || 'Failed to save reason'; errEl.style.display = '';
+        }
+      })
+      .catch(err => {
+        console.error('Error saving overrun reason', err);
+        errEl.textContent = 'Server error saving reason'; errEl.style.display = '';
+      });
+    });
+  }
+});
+</script>
+
 {% endblock %}

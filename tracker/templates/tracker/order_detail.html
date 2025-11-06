@@ -32,8 +32,20 @@
     </div>
   </div>
 
+  {% if order.overrun_reason %}
+  <div class="row g-3 mb-3">
+    <div class="col-12">
+      <div class="alert alert-warning">
+        <strong>Delay note:</strong> {{ order.overrun_reason }}
+        <div class="small text-muted mt-1">
+          Reported by {% if order.overrun_reported_by %}{{ order.overrun_reported_by.get_full_name }}{% else %}System{% endif %} on {{ order.overrun_reported_at|date:'M d, Y H:i' }}
+        </div>
+      </div>
+    </div>
   </div>
+  {% endif %}
 
+  </div>
 
 {% if order.type == 'inquiry' %}
   <!-- Enhanced Inquiry Details Section -->
@@ -956,6 +968,29 @@
 
 <!-- Capture Signature Modal -->
 <div class="modal fade" id="completeModal" tabindex="-1" aria-hidden="true">
+  <!-- Overrun modal for signature flow -->
+  <div class="modal fade" id="completeOverrunModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title">Delay Reason Required</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>This order exceeded its estimated duration. Please provide a reason for the delay before completing.</p>
+          <div class="mb-3">
+            <label class="form-label">Reason</label>
+            <textarea id="completeOverrunReason" class="form-control" rows="4" placeholder="Enter reason..."></textarea>
+            <div id="completeOverrunError" class="text-danger mt-2" style="display:none;"></div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="completeOverrunSave" class="btn btn-warning">Save & Continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="modal-dialog modal-dialog-centered modal-xl">
     <div class="modal-content">
       <div class="modal-header bg-success text-white">
@@ -966,6 +1001,7 @@
         <form method="post" enctype="multipart/form-data" action="{% url 'tracker:complete_order' pk=order.id %}" id="completeForm">
           {% csrf_token %}
           <input type="hidden" name="signature_data" id="signatureDataInput">
+          <input type="hidden" name="overrun_reason" id="completeOverrunHidden" value="{{ order.overrun_reason|default:''|escape }}">
           <div class="row g-3">
             <div class="col-md-7">
               <label class="form-label fw-medium"><i class="fa fa-paperclip me-1"></i>Optional Completion Document</label>
@@ -1012,6 +1048,71 @@
     </div>
   </div>
 </div>
+
+<script>
+(function(){
+  const footerBtn = document.getElementById('footerSignAndComplete');
+  const signAndCompleteBtn = document.getElementById('signAndCompleteBtn');
+  const completeForm = document.getElementById('completeForm');
+  const hiddenOverrun = document.getElementById('completeOverrunHidden');
+  const overrunModalEl = document.getElementById('completeOverrunModal');
+  const overrunModal = overrunModalEl ? new bootstrap.Modal(overrunModalEl) : null;
+  const overrunTextarea = document.getElementById('completeOverrunReason');
+  const overrunError = document.getElementById('completeOverrunError');
+
+  const startedAtStr = '{{ order.started_at|date:"c" }}';
+  const estimatedDuration = {{ order.estimated_duration|default:'null' }};
+
+  function needsOverrun(){
+    if ('{{ order.type }}' !== 'service' || !estimatedDuration) return false;
+    if (!startedAtStr) return false;
+    try{
+      const started = new Date(startedAtStr);
+      const now = new Date();
+      const elapsed = Math.floor((now - started)/60000);
+      return elapsed > Number(estimatedDuration);
+    }catch(e){ return false; }
+  }
+
+  function ensureAndSubmit(){
+    if (!needsOverrun()){
+      completeForm.submit();
+      return;
+    }
+    // if order already has overrun reason on server, hiddenOverrun may be set via template; check it
+    if (hiddenOverrun && hiddenOverrun.value) { completeForm.submit(); return; }
+    // show modal
+    if (overrunModal) overrunModal.show();
+  }
+
+  // Attach handlers
+  if (footerBtn) footerBtn.addEventListener('click', ensureAndSubmit);
+  if (signAndCompleteBtn) signAndCompleteBtn.addEventListener('click', ensureAndSubmit);
+
+  if (overrunModal && document.getElementById('completeOverrunSave')){
+    document.getElementById('completeOverrunSave').addEventListener('click', function(){
+      const v = (overrunTextarea.value||'').trim();
+      overrunError.style.display = 'none';
+      if (!v){ overrunError.textContent = 'Please provide a reason.'; overrunError.style.display = ''; return; }
+      // Set hidden input and submit the form
+      if (hiddenOverrun) hiddenOverrun.value = v;
+      // Also try to persist via AJAX to API (best-effort)
+      fetch('{% url "tracker:api_report_overrun" order_id=order.id %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ reason: v })
+      }).finally(() => {
+        if (overrunModal) overrunModal.hide();
+        completeForm.submit();
+      });
+    });
+  }
+})();
+</script>
 
 <!-- Sign Existing Document Modal -->
 <div class="modal fade" id="signExistingModal" tabindex="-1" aria-hidden="true">

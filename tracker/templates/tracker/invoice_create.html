@@ -109,7 +109,35 @@
               </div>
             </div>
 
-            <div class="d-flex gap-2 mt-4">
+            <!-- Service selection for ETA tracking (affects order ETA only; not shown on printed invoice) -->
+            <div class="card mb-3">
+              <div class="card-header bg-light">
+                <h6 class="mb-0">Service Selection (optional)</h6>
+              </div>
+              <div class="card-body">
+                <p class="small text-muted">Select services or add-ons performed — this will calculate an estimated duration for tracking but will not appear on the generated invoice.</p>
+
+                <div class="row g-2 mb-2">
+                  <div class="col-md-4">
+                    <label class="form-label">Order Type</label>
+                    <select id="invoiceOrderType" class="form-select" name="order_type" {% if order %}disabled{% endif %}>
+                      <option value="service" {% if order and order.type=='service' %}selected{% endif %}>Service</option>
+                      <option value="sales" {% if order and order.type=='sales' %}selected{% endif %}>Sales</option>
+                    </select>
+                    {% if order %}<input type="hidden" name="order_type_fixed" value="{{ order.type }}">{% endif %}
+                  </div>
+                </div>
+
+                <div id="invoiceServiceContainer" class="row g-2">Loading services...</div>
+                <div id="invoiceSalesContainer" class="row g-2" style="display:none;">Loading items...</div>
+
+                <div class="small text-muted mt-2" id="invoiceEtaHint" style="display:none;"></div>
+                <input type="hidden" name="service_selection" id="serviceSelectionInput" value="">
+                <input type="hidden" name="estimated_duration" id="invoiceEstimatedDuration" value="{{ order.estimated_duration|default:'' }}">
+              </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-2">
               {% if order %}
                 <a href="{% url 'tracker:started_order_detail' order_id=order.id %}" class="btn btn-light">Cancel</a>
               {% else %}
@@ -117,6 +145,124 @@
               {% endif %}
               <button type="submit" class="btn btn-primary">Create Invoice</button>
             </div>
+
+            <script>
+              // Populate service selection and compute ETA based on order type
+              document.addEventListener('DOMContentLoaded', function(){
+                const svcContainer = document.getElementById('invoiceServiceContainer');
+                const salesContainer = document.getElementById('invoiceSalesContainer');
+                const hint = document.getElementById('invoiceEtaHint');
+                const hiddenSel = document.getElementById('serviceSelectionInput');
+                const hiddenEta = document.getElementById('invoiceEstimatedDuration');
+                const orderTypeSelect = document.getElementById('invoiceOrderType');
+                const initialOrderType = {% if order %}'{{ order.type }}'{% else %}null{% endif %};
+
+                function renderServices(data){
+                  const serviceTypes = Array.isArray(data.service_types)?data.service_types:[];
+                  const addOns = Array.isArray(data.service_addons)?data.service_addons:[];
+                  svcContainer.innerHTML = '';
+
+                  // Render service type checkboxes (for service orders)
+                  serviceTypes.forEach(s => {
+                    const id = 'inv_srv_' + (s.name||'').replace(/[^A-Za-z0-9_]/g,'_');
+                    const col = document.createElement('div'); col.className = 'col-md-6';
+                    col.innerHTML = `<div class="form-check"><input class="form-check-input inv-svc-opt" type="checkbox" id="${id}" value="${s.name}" data-minutes="${s.estimated_minutes||0}"><label class="form-check-label" for="${id}">${s.name} <small class="text-muted">(${s.estimated_minutes||0}m)</small></label></div>`;
+                    svcContainer.appendChild(col);
+                  });
+
+                  if (addOns.length){
+                    const hr = document.createElement('div'); hr.className='col-12 mt-2'; hr.innerHTML='<hr>'; svcContainer.appendChild(hr);
+                    addOns.forEach(a => {
+                      const id = 'inv_add_' + (a.name||'').replace(/[^A-Za-z0-9_]/g,'_');
+                      const col = document.createElement('div'); col.className = 'col-md-6';
+                      col.innerHTML = `<div class="form-check"><input class="form-check-input inv-svc-opt" type="checkbox" id="${id}" value="${a.name}" data-minutes="${a.estimated_minutes||0}"><label class="form-check-label" for="${id}">${a.name} <small class="text-muted">(${a.estimated_minutes||0}m)</small></label></div>`;
+                      svcContainer.appendChild(col);
+                    });
+                  }
+
+                  // Attach listeners
+                  svcContainer.querySelectorAll('.inv-svc-opt').forEach(cb=>cb.addEventListener('change', updateSel));
+                }
+
+                function renderSales(data){
+                  const items = Array.isArray(data.inventory_items)?data.inventory_items:[];
+                  const addOns = Array.isArray(data.service_addons)?data.service_addons:[];
+                  salesContainer.innerHTML = '';
+
+                  // Inventory items as selectable entries for sales orders
+                  items.forEach(it => {
+                    const id = 'inv_item_' + (it.id||'');
+                    const col = document.createElement('div'); col.className='col-md-6';
+                    col.innerHTML = `<div class="form-check"><input class="form-check-input inv-svc-opt-sales" type="checkbox" id="${id}" value="${it.id}" data-name="${(it.name||'').replace(/"/g,'\"')}"><label class="form-check-label" for="${id}">${it.brand} - ${it.name} <small class="text-muted">(Stock: ${it.quantity||0})</small></label></div>`;
+                    salesContainer.appendChild(col);
+                  });
+
+                  if (addOns.length){
+                    const hr = document.createElement('div'); hr.className='col-12 mt-2'; hr.innerHTML='<hr>'; salesContainer.appendChild(hr);
+                    addOns.forEach(a => {
+                      const id = 'inv_add_s_' + (a.name||'').replace(/[^A-Za-z0-9_]/g,'_');
+                      const col = document.createElement('div'); col.className = 'col-md-6';
+                      col.innerHTML = `<div class="form-check"><input class="form-check-input inv-svc-opt-sales" type="checkbox" id="${id}" value="${a.name}" data-minutes="${a.estimated_minutes||0}"><label class="form-check-label" for="${id}">${a.name} <small class="text-muted">(${a.estimated_minutes||0}m)</small></label></div>`;
+                      salesContainer.appendChild(col);
+                    });
+                  }
+
+                  salesContainer.querySelectorAll('.inv-svc-opt-sales').forEach(cb=>cb.addEventListener('change', updateSelSales));
+                }
+
+                function updateSel(){
+                  const checked = Array.from(svcContainer.querySelectorAll('.inv-svc-opt:checked'));
+                  const names = checked.map(c=>c.value);
+                  const total = checked.reduce((s,c)=>s+Number(c.getAttribute('data-minutes')||0),0);
+                  hiddenSel.value = JSON.stringify(names);
+                  hiddenEta.value = total>0?String(total):'';
+                  if (total>0){ hint.style.display='block'; hint.textContent = 'Estimated total time: ' + total + ' mins'; } else { hint.style.display='none'; }
+                }
+
+                function updateSelSales(){
+                  const checked = Array.from(salesContainer.querySelectorAll('.inv-svc-opt-sales:checked'));
+                  // For sales we encode selection as array of item names/ids
+                  const names = checked.map(c=>{ const n = c.getAttribute('data-name'); return n?`${n}`:c.value; });
+                  // compute minutes from addons if present
+                  const total = checked.reduce((s,c)=>s+Number(c.getAttribute('data-minutes')||0),0);
+                  hiddenSel.value = JSON.stringify(names);
+                  hiddenEta.value = total>0?String(total):'';
+                  if (total>0){ hint.style.display='block'; hint.textContent = 'Estimated total time: ' + total + ' mins'; } else { hint.style.display='none'; }
+                }
+
+                // Fetch data and initialize
+                fetch('{% url "tracker:api_service_types" %}', { headers: { 'X-Requested-With': 'XMLHttpRequest' }})
+                  .then(r=>r.json()).then(data=>{
+                    renderServices(data);
+                    renderSales(data);
+
+                    // Initial display based on order or default select
+                    const defaultType = initialOrderType || (orderTypeSelect?orderTypeSelect.value:'service');
+                    setTimeout(()=>{
+                      if (defaultType === 'sales'){
+                        svcContainer.style.display='none'; salesContainer.style.display='flex';
+                        if (orderTypeSelect) orderTypeSelect.value='sales';
+                      } else {
+                        svcContainer.style.display='flex'; salesContainer.style.display='none';
+                        if (orderTypeSelect) orderTypeSelect.value='service';
+                      }
+                    }, 10);
+
+                    if (orderTypeSelect){
+                      orderTypeSelect.addEventListener('change', function(){
+                        if (this.value === 'sales'){ svcContainer.style.display='none'; salesContainer.style.display='flex'; }
+                        else { svcContainer.style.display='flex'; salesContainer.style.display='none'; }
+                        // clear selections and update hidden
+                        hiddenSel.value = '';
+                        hiddenEta.value = '';
+                        hint.style.display='none';
+                      });
+                    }
+                  })
+                  .catch(err=>{ console.error('Failed to load services/items for invoice:', err); svcContainer.innerHTML='<div class="text-danger">Failed to load services</div>'; salesContainer.innerHTML=''; });
+
+              });
+            </script>
           </form>
         </div>
       </div>

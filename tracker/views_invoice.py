@@ -45,7 +45,37 @@ def invoice_create(request, order_id=None):
             invoice.created_by = request.user
             invoice.generate_invoice_number()
             invoice.save()
-            
+            # If this invoice was created from an order and service selection/ETA provided, update the order for tracking
+            try:
+                if order:
+                    sel = request.POST.get('service_selection')
+                    est = request.POST.get('estimated_duration')
+                    if sel:
+                        # expected JSON array from client
+                        try:
+                            names = json.loads(sel)
+                        except Exception:
+                            # fallback to comma-separated
+                            names = [s.strip() for s in str(sel).split(',') if s.strip()]
+                        if names:
+                            # Append services/add-ons to order.description (not shown on invoice)
+                            base_desc = order.description or ''
+                            svc_text = ', '.join(names)
+                            lines = [l for l in base_desc.split('\n') if not (l.strip().lower().startswith('services:') or l.strip().lower().startswith('add-ons:') or l.strip().lower().startswith('tire services:'))]
+                            if order.type == 'sales':
+                                lines.append(f"Tire Services: {svc_text}")
+                            else:
+                                lines.append(f"Services: {svc_text}")
+                            order.description = '\n'.join([l for l in lines if l.strip()])
+                    if est:
+                        try:
+                            order.estimated_duration = int(est)
+                        except Exception:
+                            pass
+                    order.save()
+            except Exception as e:
+                logger.warning(f"Failed to update order with service selection/ETA: {e}")
+
             messages.success(request, f'Invoice {invoice.invoice_number} created successfully.')
             return redirect('tracker:invoice_detail', pk=invoice.pk)
     else:

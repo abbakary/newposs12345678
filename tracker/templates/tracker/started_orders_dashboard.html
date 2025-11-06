@@ -235,8 +235,8 @@
 <script>
   // AJAX polling to update data without full page refresh
   let refreshInterval = null;
-  const REFRESH_INTERVAL_MS = 30000; // 30 seconds
-  
+  const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 1 day refresh to avoid clearing started orders unintentionally
+
   function updateDashboardData() {
     // Update KPIs via JSON API
     fetch('{% url "tracker:api_started_orders_kpis" %}', {
