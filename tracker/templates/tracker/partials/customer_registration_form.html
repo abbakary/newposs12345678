@@ -1,0 +1,553 @@
+{% load static %}
+<form id="customerRegistrationForm" method="post" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="step" id="currentStep" value="{{ step }}">
+  <input type="hidden" name="save_only" id="saveOnly" value="0">
+  <input type="hidden" id="registrationIntent" value="{{ intent }}">
+
+  <div class="wizard-step">
+    {% if step == 1 %}
+      <!-- Step 1: Customer Information -->
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Full name</label>
+          {{ form.full_name }}
+          {% if form.full_name.errors %}<div class="text-danger f-12">{{ form.full_name.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Phone</label>
+          <div class="tz-phone-group customer-phone-group">
+            <span class="tz-flag-addon">
+              <img src="{% static 'assets/images/flags/tz.svg' %}" alt="Tanzania flag" class="customer-phone-flag">
+            </span>
+            {{ form.phone }}
+          </div>
+          {% if form.phone.errors %}<div class="text-danger f-12">{{ form.phone.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Email (optional)</label>
+          {{ form.email }}
+          {% if form.email.errors %}<div class="text-danger f-12">{{ form.email.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Customer type</label>
+          {{ form.customer_type }}
+          {% if form.customer_type.errors %}<div class="text-danger f-12">{{ form.customer_type.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-12" id="organization-field" style="display: none;">
+          <label class="form-label">Organization name</label>
+          {{ form.organization_name }}
+          {% if form.organization_name.errors %}<div class="text-danger f-12">{{ form.organization_name.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-md-6" id="tax-field" style="display: none;">
+          <label class="form-label">Tax number</label>
+          {{ form.tax_number }}
+          {% if form.tax_number.errors %}<div class="text-danger f-12">{{ form.tax_number.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-md-6" id="personal-subtype-field" style="display: none;">
+          <label class="form-label">Personal subtype</label>
+          {{ form.personal_subtype }}
+          {% if form.personal_subtype.errors %}<div class="text-danger f-12">{{ form.personal_subtype.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-12">
+          <label class="form-label">Address (optional)</label>
+          {{ form.address }}
+        </div>
+        <div class="col-12">
+          <label class="form-label">Notes (optional)</label>
+          {{ form.notes }}
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 mt-4">
+        <a class="btn btn-light" href="{% url 'tracker:customers_list' %}">Cancel</a>
+        <button type="button" class="btn btn-outline-primary" id="saveCustomerBtn">Save Customer</button>
+        <button type="button" class="btn btn-primary ms-auto" id="nextStepBtn">Next</button>
+      </div>
+
+    {% elif step == 2 %}
+      <!-- Step 2: Intent Selection -->
+      <div class="row">
+        <div class="col-12 mb-3">
+          <h6 class="mb-2">What brings the customer today?</h6>
+        </div>
+        <div class="col-md-4">
+          <div class="card intent-card p-3 cursor-pointer" onclick="selectIntent('service')">
+            <div class="card-body">
+              <h6>Service</h6>
+              <p class="mb-0 small text-muted">I need a service</p>
+              <input type="radio" name="intent" value="service" class="d-none" {% if step2.intent == 'service' %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card intent-card p-3 cursor-pointer" onclick="selectIntent('sales')">
+            <div class="card-body">
+              <h6>Purchase</h6>
+              <p class="mb-0 small text-muted">I want to buy something</p>
+              <input type="radio" name="intent" value="sales" class="d-none" {% if step2.intent == 'sales' %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card intent-card p-3 cursor-pointer" onclick="selectIntent('inquiry')">
+            <div class="card-body">
+              <h6>Inquiry</h6>
+              <p class="mb-0 small text-muted">Just an inquiry</p>
+              <input type="radio" name="intent" value="inquiry" class="d-none" {% if step2.intent == 'inquiry' %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 mt-4">
+        <button type="button" class="btn btn-light" id="backFromStep2">Back</button>
+        <button type="button" class="btn btn-primary ms-auto" id="nextStep2">Next</button>
+      </div>
+
+    {% elif step == 3 %}
+      <!-- Step 3: Intent-Specific Details -->
+      <input type="hidden" name="service_type" id="id_service_type" value="{% if intent == 'sales' %}tire_sales{% elif intent == 'service' %}car_service{% else %}{{ step3.service_type }}{% endif %}">
+
+      {% if intent == 'service' %}
+        <div class="row g-3">
+          <!-- Vehicle Information -->
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header"><h6 class="mb-0">Vehicle Information </h6></div>
+              <div class="card-body">
+                <div class="row g-3">
+                  <div class="col-md-3">
+                    <label class="form-label">Plate Number</label>
+                    <input name="plate_number" id="id_plate_number" class="form-control" placeholder="e.g., T123ABC">
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Make</label>
+                    <input name="make" id="id_make" class="form-control" placeholder="e.g., Toyota">
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Model</label>
+                    <input name="model" id="id_model" class="form-control" placeholder="e.g., Corolla">
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Vehicle Type</label>
+                    <select name="vehicle_type" id="id_vehicle_type" class="form-select">
+                      <option value="">Select type</option>
+                      <option value="sedan">Sedan</option>
+                      <option value="suv">SUV</option>
+                      <option value="truck">Truck</option>
+                      <option value="motorcycle">Motorcycle</option>
+                      <option value="bus">Bus</option>
+                      <option value="van">Van</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Service Offered -->
+          <div class="col-12">
+            <div class="card border-success">
+              <div class="card-header bg-success text-white"><h6 class="mb-0">Service Offered</h6></div>
+              <div class="card-body">
+                <div class="row g-3">
+                  {% if service_types %}
+                    {% for svc in service_types %}
+                    <div class="col-md-4">
+                      <div class="service-card card p-2 cursor-pointer" data-minutes="{{ svc.estimated_minutes }}" onclick="toggleServiceCheckbox(event, 'svc_chk_{{ forloop.counter }}')">
+                        <div class="card-body p-2 d-flex align-items-center">
+                          <input class="form-check-input service-checkbox me-2" type="checkbox" id="svc_chk_{{ forloop.counter }}" name="service_selection" value="{{ svc.name }}" data-minutes="{{ svc.estimated_minutes }}" {% if step3.service_selection and svc.name in step3.service_selection %}checked{% endif %}>
+                          <div>
+                            <label class="form-check-label mb-0" for="svc_chk_{{ forloop.counter }}">{{ svc.name }}</label>
+                            <div class="small text-muted">{{ svc.estimated_minutes }} mins</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {% endfor %}
+                  {% else %}
+                    {% for svc in service_offers %}
+                    <div class="col-md-4">
+                      <div class="service-card card p-2 cursor-pointer" onclick="toggleServiceCheckbox(event, 'svc_fallback_{{ forloop.counter }}')">
+                        <div class="card-body p-2 d-flex align-items-center">
+                          <input class="form-check-input service-checkbox me-2" type="checkbox" id="svc_fallback_{{ forloop.counter }}" name="service_selection" value="{{ svc }}">
+                          <div>
+                            <label class="form-check-label mb-0" for="svc_fallback_{{ forloop.counter }}">{{ svc }}</label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {% endfor %}
+                  {% endif %}
+                </div>
+                <div class="small text-muted mt-2" id="cr_total_eta_hint" style="display:none;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description and Duration -->
+          <div class="col-md-8">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" placeholder="Describe the issue or service needed"></textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Estimated duration (mins)</label>
+            <input name="estimated_duration" id="estimated_duration" class="form-control" value="0" readonly>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+          <button type="button" class="btn btn-light" id="backFromStep3">Back</button>
+          <button type="button" class="btn btn-primary ms-auto" id="nextServiceBtn">Next</button>
+        </div>
+
+      {% elif intent == 'sales' %}
+        <div class="row g-3">
+          <!-- Item Details -->
+          <div class="col-md-12">
+            <label class="form-label">Select Item</label>
+            <select name="item_name" id="id_item_name" class="form-select" data-items='{{ item_data_json|escapejs }}'>
+              <option value="">Select item</option>
+              {% for item in inventory_items %}
+                {% if item.brand %}
+                  <option value="{{ item.id }}">{{ item.brand.name }} - {{ item.name }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+            <input type="hidden" name="brand" id="id_brand">
+            <small class="text-muted">Item name and brand will be automatically filled</small>
+          </div>
+
+          <!-- Quantity and Tire Type -->
+          <div class="col-md-4">
+            <label class="form-label">Quantity</label>
+            <input name="quantity" class="form-control">
+          </div>
+          <div class="col-md-8 d-none">
+            <input type="hidden" name="tire_type" value="New">
+          </div>
+
+          <!-- Tire Service Add-ons -->
+          <div class="col-12">
+            <div class="card border-warning">
+              <div class="card-header bg-warning text-dark"><h6 class="mb-0">Tire Service Add-ons</h6></div>
+              <div class="card-body">
+                <div class="row g-3">
+                  {% if sales_addons %}
+                    {% for ad in sales_addons %}
+                    <div class="col-md-3">
+                      <div class="service-card card p-2 cursor-pointer" data-minutes="{{ ad.estimated_minutes }}" onclick="toggleServiceCheckbox(event, 'oc_ts_{{ forloop.counter }}', true)">
+                        <div class="card-body p-2 d-flex align-items-center">
+                          <input class="form-check-input tire-service-checkbox me-2" type="checkbox" id="oc_ts_{{ forloop.counter }}" name="tire_services" value="{{ ad.name }}" data-minutes="{{ ad.estimated_minutes }}">
+                          <div>
+                            <label class="form-check-label mb-0" for="oc_ts_{{ forloop.counter }}">{{ ad.name }}</label>
+                            <div class="small text-muted">{{ ad.estimated_minutes }} mins</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {% endfor %}
+                  {% else %}
+                    <div class="col-12"><small class="text-muted">No add-ons available</small></div>
+                  {% endif %}
+                </div>
+                <div class="small text-muted mt-2" id="cr_tire_services_total_eta_hint" style="display:none;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description and Duration -->
+          <div class="col-md-8">
+            <label class="form-label">Description (optional)</label>
+            <textarea name="description" class="form-control" rows="3" placeholder="Additional details about the purchase..."></textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Estimated duration (mins)</label>
+            <input name="estimated_duration" id="estimated_duration_sales" class="form-control" value="0" readonly>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+          <button type="button" class="btn btn-light" id="backFromStep3">Back</button>
+          <button type="button" class="btn btn-primary ms-auto" id="nextServiceBtn">Next</button>
+        </div>
+
+      {% else %}
+        <!-- Inquiry Form -->
+        <div class="row">
+          <input type="hidden" name="type" value="inquiry">
+          <div class="col-md-4">
+            <label class="form-label">Priority</label>
+            <select name="priority" class="form-select">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="col-md-6 mt-3">
+            <label class="form-label">Inquiry type</label>
+            <select name="inquiry_type" class="form-select">
+              <option value="">Select inquiry type</option>
+              <option value="Pricing">Pricing</option>
+              <option value="Services">Services</option>
+              <option value="Appointment Booking">Appointment Booking</option>
+              <option value="General">General</option>
+            </select>
+          </div>
+          <div class="col-md-6 mt-3">
+            <label class="form-label">Contact preference</label>
+            <select name="contact_preference" class="form-select">
+              <option value="">Select preference</option>
+              <option value="phone">Phone</option>
+              <option value="email">Email</option>
+              <option value="whatsapp">WhatsApp</option>
+            </select>
+          </div>
+          <div class="col-12 mt-3">
+            <label class="form-label">Questions</label>
+            <textarea name="questions" class="form-control" rows="4" placeholder="Please describe your questions or what you'd like to know..."></textarea>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+          <button type="button" class="btn btn-light" id="backFromStep3">Back</button>
+          <button type="button" class="btn btn-primary ms-auto" id="nextServiceBtn">Next</button>
+        </div>
+      {% endif %}
+
+    {% else %}
+      <!-- Step 4: Review and Submit -->
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card mb-3">
+            <div class="card-header bg-light">
+              <h6 class="mb-0">Customer Information</h6>
+            </div>
+            <div class="card-body">
+              <p><strong>Name:</strong> {{ step1.full_name }}</p>
+              <p><strong>Phone:</strong> {{ step1.phone }}</p>
+              <p><strong>Email:</strong> {{ step1.email|default:"-" }}</p>
+              <p><strong>Type:</strong> {{ step1.customer_type }}</p>
+              <p><strong>Notes:</strong> {{ step1.notes|default:"-" }}</p>
+            </div>
+          </div>
+
+          {% if intent == 'service' %}
+            <!-- Service Vehicle Details -->
+            <div class="card mb-3">
+              <div class="card-header bg-light">
+                <h6 class="mb-0">Vehicle Details</h6>
+              </div>
+              <div class="card-body">
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <small class="text-muted d-block">Plate Number</small>
+                    <div class="fw-medium">{{ step3.plate_number|default:"-" }}</div>
+                  </div>
+                  <div class="col-md-6">
+                    <small class="text-muted d-block">Vehicle Type</small>
+                    <div class="fw-medium">{{ step3.vehicle_type|default:"-"|title }}</div>
+                  </div>
+                  <div class="col-md-6">
+                    <small class="text-muted d-block">Make</small>
+                    <div class="fw-medium">{{ step3.make|default:"-" }}</div>
+                  </div>
+                  <div class="col-md-6">
+                    <small class="text-muted d-block">Model</small>
+                    <div class="fw-medium">{{ step3.model|default:"-" }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-6">
+          <!-- Order Summary -->
+          <div class="card mb-3">
+            <div class="card-header bg-light d-flex align-items-center">
+              {% if intent == 'service' %}
+                <i class="fa fa-wrench me-2 text-primary"></i>
+                <h6 class="mb-0">Service Order</h6>
+                <span class="badge bg-primary rounded-pill ms-2">SERVICE</span>
+              {% elif intent == 'sales' %}
+                <i class="fa fa-shopping-cart me-2 text-success"></i>
+                <h6 class="mb-0">Sales Order</h6>
+                <span class="badge bg-success rounded-pill ms-2">SALES</span>
+              {% else %}
+                <i class="fa fa-question-circle me-2 text-info"></i>
+                <h6 class="mb-0">Inquiry</h6>
+                <span class="badge bg-info text-dark rounded-pill ms-2">INQUIRY</span>
+              {% endif %}
+            </div>
+            <div class="card-body">
+              {% if intent == 'service' %}
+                <div class="row g-3">
+                  {% if step3.service_selection %}
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium mb-2">Selected Services</small>
+                    <div class="d-flex flex-wrap gap-2">
+                      {% for service in step3.service_selection %}
+                        <span class="badge bg-success">{{ service }}</span>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  {% else %}
+                  <div class="col-12">
+                    <div class="alert alert-warning py-2 mb-0"><i class="fa fa-exclamation-triangle me-2"></i>No services selected</div>
+                  </div>
+                  {% endif %}
+                  {% if step3.estimated_duration %}
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Estimated Time</small>
+                    <div class="p-2 rounded border-start border-4 border-success bg-light">
+                      <strong>{{ step3.estimated_duration }} mins</strong>
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+
+              {% elif intent == 'sales' %}
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <small class="text-muted d-block fw-medium">Item</small>
+                    <div class="fw-medium">{{ step3.item_name|default:"-" }}</div>
+                  </div>
+                  <div class="col-md-6">
+                    <small class="text-muted d-block fw-medium">Brand</small>
+                    <div class="fw-medium">{{ step3.brand|default:"-" }}</div>
+                  </div>
+                  <div class="col-md-6">
+                    <small class="text-muted d-block fw-medium">Quantity</small>
+                    <div class="fw-medium">{{ step3.quantity|default:"-" }}</div>
+                  </div>
+                  {% if step3.tire_type %}
+                  <div class="col-md-6">
+                    <small class="text-muted d-block fw-medium">Tire Type</small>
+                    <div class="fw-medium">{{ step3.tire_type }}</div>
+                  </div>
+                  {% endif %}
+                  {% if step3.tire_services %}
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Service Add-ons</small>
+                    <div class="d-flex flex-wrap gap-2">
+                      {% for addon in step3.tire_services %}
+                        <span class="badge bg-warning text-dark">{{ addon }}</span>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  {% endif %}
+                  {% if step3.estimated_duration %}
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Estimated Time</small>
+                    <div class="p-2 rounded border-start border-4 border-warning bg-light">
+                      <strong>{{ step3.estimated_duration }} mins</strong>
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+
+              {% else %}
+                <div class="row g-3">
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Inquiry Type</small>
+                    <div class="fw-medium">{{ step3.inquiry_type|default:"-" }}</div>
+                  </div>
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Contact Preference</small>
+                    <div class="fw-medium">{{ step3.contact_preference|default:"-" }}</div>
+                  </div>
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Priority</small>
+                    <div class="fw-medium">{{ step3.priority|default:"-" }}</div>
+                  </div>
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Questions & Details</small>
+                    <div class="alert alert-light py-2 mb-0 text-break">{{ step3.questions|default:"-" }}</div>
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="alert alert-info py-2 mb-0">
+            <i class="fa fa-info-circle me-2"></i>
+            <small>Review the information above. Click <strong>Create Customer & Order</strong> to proceed.</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden fields for form submission -->
+      {% if intent == 'service' %}
+        <input type="hidden" name="type" value="service">
+        {% if step3.service_selection %}
+          {% for s in step3.service_selection %}
+            <input type="hidden" name="service_selection" value="{{ s }}">
+          {% endfor %}
+        {% endif %}
+        <input type="hidden" name="plate_number" value="{{ step3.plate_number }}">
+        <input type="hidden" name="make" value="{{ step3.make }}">
+        <input type="hidden" name="model" value="{{ step3.model }}">
+        <input type="hidden" name="vehicle_type" value="{{ step3.vehicle_type }}">
+        <input type="hidden" name="description" value="{{ step3.description }}">
+        <input type="hidden" name="estimated_duration" value="{{ step3.estimated_duration }}">
+
+      {% elif intent == 'sales' %}
+        <input type="hidden" name="type" value="sales">
+        <input type="hidden" name="item_name" value="{{ step3.item_name }}">
+        <input type="hidden" name="brand" value="{{ step3.brand }}">
+        <input type="hidden" name="quantity" value="{{ step3.quantity }}">
+        <input type="hidden" name="tire_type" value="{{ step3.tire_type }}">
+        <input type="hidden" name="description" value="{{ step3.description }}">
+        <input type="hidden" name="estimated_duration" value="{{ step3.estimated_duration }}">
+        {% if step3.tire_services %}
+          {% for ts in step3.tire_services %}
+            <input type="hidden" name="tire_services" value="{{ ts }}">
+          {% endfor %}
+        {% endif %}
+
+      {% else %}
+        <input type="hidden" name="type" value="inquiry">
+        <input type="hidden" name="priority" value="{{ step3.priority }}">
+        <input type="hidden" name="inquiry_type" value="{{ step3.inquiry_type }}">
+        <input type="hidden" name="contact_preference" value="{{ step3.contact_preference }}">
+        <input type="hidden" name="questions" value="{{ step3.questions }}">
+      {% endif %}
+
+      <div class="d-flex gap-2 mt-3">
+        <button type="button" class="btn btn-light" id="backFromStep4">Back</button>
+        <button type="submit" class="btn btn-success ms-auto">Create Customer & Order</button>
+      </div>
+    {% endif %}
+  </div>
+</form>
+
+<style>
+.service-offer {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.service-offer:hover {
+  border-color: #0d6efd !important;
+  transform: translateY(-1px);
+}
+.service-offer.border-primary {
+  border-color: #0d6efd !important;
+  background-color: #f8f9fa !important;
+}
+.intent-card {
+  transition: all 0.2s ease;
+}
+.intent-card:hover {
+  border-color: #0d6efd;
+  transform: translateY(-2px);
+}
+.border-primary {
+  border-color: #0d6efd !important;
+}
+.bg-light {
+  background-color: #f8f9fa !important;
+}
+.cursor-pointer {
+  cursor: pointer;
+}
+</style>
