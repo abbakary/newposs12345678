@@ -472,6 +472,84 @@ def api_upload_and_extract_invoice(request):
 
 
 @login_required
+@require_http_methods(["POST"])
+def api_create_invoice_from_extraction(request):
+    """
+    API endpoint to create an Invoice record from extracted document data (AJAX).
+    Expects JSON body with keys: extraction_id, order_id, reference, due_date, tax_rate, attended_by, kind_attention, notes, terms
+    Returns JSON: { success: True, invoice_id: <id> }
+    """
+    try:
+        data = json.loads(request.body)
+        extraction_id = data.get('extraction_id')
+        order_id = data.get('order_id')
+        reference = data.get('reference')
+        due_date_str = data.get('due_date')
+        tax_rate = data.get('tax_rate')
+        attended_by = data.get('attended_by')
+        kind_attention = data.get('kind_attention')
+        notes = data.get('notes')
+        terms = data.get('terms')
+
+        user_branch = get_user_branch(request.user)
+
+        # Validate order
+        order = None
+        if order_id:
+            try:
+                order = Order.objects.get(id=int(order_id), branch=user_branch)
+            except Exception:
+                return JsonResponse({'success': False, 'error': 'Order not found'}, status=404)
+
+        # Create invoice instance
+        invoice = Invoice()
+        invoice.branch = user_branch
+        if order:
+            invoice.order = order
+            # Prefer order's customer/vehicle when available
+            invoice.customer = order.customer
+            invoice.vehicle = order.vehicle
+        # Fill fields from provided data
+        if reference:
+            invoice.reference = reference
+        else:
+            if order and order.vehicle and getattr(order.vehicle, 'plate_number', None):
+                invoice.reference = order.vehicle.plate_number
+            elif order:
+                invoice.reference = order.order_number
+
+        if due_date_str:
+            try:
+                # Accept YYYY-MM-DD or ISO formats
+                invoice.due_date = datetime.fromisoformat(due_date_str).date()
+            except Exception:
+                try:
+                    invoice.due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date()
+                except Exception:
+                    pass
+
+        try:
+            invoice.tax_rate = Decimal(str(tax_rate)) if tax_rate is not None and str(tax_rate) != '' else None
+        except Exception:
+            invoice.tax_rate = None
+
+        invoice.attended_by = attended_by or ''
+        invoice.kind_attention = kind_attention or ''
+        invoice.notes = notes or ''
+        invoice.terms = terms or ''
+        invoice.created_by = request.user
+        invoice.generate_invoice_number()
+        invoice.save()
+
+        return JsonResponse({'success': True, 'invoice_id': invoice.id})
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.error(f"Error creating invoice from extraction: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
 @require_http_methods(["GET"])
 def api_inventory_for_invoice(request):
     """API endpoint to fetch inventory items for invoice line items"""
