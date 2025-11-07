@@ -220,11 +220,17 @@
                   function renderCheckbox(name, mins, isChecked, extraBadge){
                     const safe = (name||'').replace(/[^A-Za-z0-9_]/g,'_');
                     const id = 'od_opt_' + safe;
-                    const col = document.createElement('div'); col.className = 'col-md-6';
-                    const badge = extraBadge ? ` <span class="badge bg-light text-dark ms-1">${extraBadge}</span>` : '';
-                    col.innerHTML = `<div class="form-check">
+                    const col = document.createElement('div'); col.className = 'col-md-6 col-lg-4';
+                    const cardClass = extraBadge ? 'addon-checkbox-card' : 'service-checkbox-card';
+                    const labelClass = extraBadge ? 'addon-checkbox-label' : 'service-checkbox-label';
+                    col.innerHTML = `<div class="${cardClass}">
                       <input class="form-check-input od-option" type="checkbox" id="${id}" name="services" value="${name}" data-minutes="${mins||0}" ${isChecked?'checked':''}>
-                      <label class="form-check-label" for="${id}">${name} <span class="text-muted small">(${mins||0}m)</span>${badge}</label>
+                      <label class="${labelClass}" for="${id}">
+                        <div class="${extraBadge ? 'addon' : 'service'}-checkbox-content">
+                          <div class="${extraBadge ? 'addon' : 'service'}-checkbox-name">${name}</div>
+                          <div class="${extraBadge ? 'addon' : 'service'}-checkbox-duration"><i class="fa fa-clock-o me-1"></i>${mins||0} mins</div>
+                        </div>
+                      </label>
                     </div>`;
                     container.appendChild(col);
                   }

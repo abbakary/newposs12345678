@@ -322,8 +322,8 @@
                   // Render service type checkboxes (for service orders)
                   serviceTypes.forEach(s => {
                     const id = 'inv_srv_' + (s.name||'').replace(/[^A-Za-z0-9_]/g,'_');
-                    const col = document.createElement('div'); col.className = 'col-md-6';
-                    col.innerHTML = `<div class="form-check"><input class="form-check-input inv-svc-opt" type="checkbox" id="${id}" value="${s.name}" data-minutes="${s.estimated_minutes||0}"><label class="form-check-label" for="${id}">${s.name} <small class="text-muted">(${s.estimated_minutes||0}m)</small></label></div>`;
+                    const col = document.createElement('div'); col.className = 'col-md-6 col-lg-4';
+                    col.innerHTML = `<div class="service-checkbox-card"><input class="form-check-input inv-svc-opt" type="checkbox" id="${id}" value="${s.name}" data-minutes="${s.estimated_minutes||0}"><label class="service-checkbox-label" for="${id}"><div class="service-checkbox-content"><div class="service-checkbox-name">${s.name}</div><div class="service-checkbox-duration"><i class="fa fa-clock-o me-1"></i>${s.estimated_minutes||0} mins</div></div></label></div>`;
                     svcContainer.appendChild(col);
                   });
 
@@ -331,8 +331,8 @@
                     const hr = document.createElement('div'); hr.className='col-12 mt-2'; hr.innerHTML='<hr>'; svcContainer.appendChild(hr);
                     addOns.forEach(a => {
                       const id = 'inv_add_' + (a.name||'').replace(/[^A-Za-z0-9_]/g,'_');
-                      const col = document.createElement('div'); col.className = 'col-md-6';
-                      col.innerHTML = `<div class="form-check"><input class="form-check-input inv-svc-opt" type="checkbox" id="${id}" value="${a.name}" data-minutes="${a.estimated_minutes||0}"><label class="form-check-label" for="${id}">${a.name} <small class="text-muted">(${a.estimated_minutes||0}m)</small></label></div>`;
+                      const col = document.createElement('div'); col.className = 'col-md-6 col-lg-4';
+                      col.innerHTML = `<div class="addon-checkbox-card"><input class="form-check-input inv-svc-opt" type="checkbox" id="${id}" value="${a.name}" data-minutes="${a.estimated_minutes||0}"><label class="addon-checkbox-label" for="${id}"><div class="addon-checkbox-content"><div class="addon-checkbox-name">${a.name}</div><div class="addon-checkbox-duration"><i class="fa fa-clock-o me-1"></i>${a.estimated_minutes||0} mins</div></div></label></div>`;
                       svcContainer.appendChild(col);
                     });
                   }
@@ -349,9 +349,9 @@
                   // Inventory items as selectable entries for sales orders
                   items.forEach(it => {
                     const id = 'inv_item_' + (it.id||'');
-                    const col = document.createElement('div'); col.className='col-md-6';
+                    const col = document.createElement('div'); col.className='col-md-6 col-lg-4';
                     const price = typeof it.price !== 'undefined' ? Number(it.price) : 0;
-                    col.innerHTML = `<div class="form-check"><input class="form-check-input inv-svc-opt-sales" type="checkbox" id="${id}" value="${it.id}" data-name="${(it.name||'').replace(/"/g,'\\"')}" data-price="${price}"><label class="form-check-label" for="${id}">${it.brand} - ${it.name} <small class="text-muted">(Stock: ${it.quantity||0})</small></label><div class="small text-muted">Price: ${price.toFixed(2)} TSH</div></div>`;
+                    col.innerHTML = `<div class="addon-checkbox-card"><input class="form-check-input inv-svc-opt-sales" type="checkbox" id="${id}" value="${it.id}" data-name="${(it.name||'').replace(/"/g,'\\"')}" data-price="${price}"><label class="addon-checkbox-label" for="${id}"><div class="addon-checkbox-content"><div class="addon-checkbox-name">${it.brand} - ${it.name}</div><div class="addon-checkbox-duration"><i class="fa fa-info-circle me-1"></i>Stock: ${it.quantity||0} | ${price.toFixed(2)} TSH</div></div></label></div>`;
                     salesContainer.appendChild(col);
                   });
 
@@ -359,8 +359,8 @@
                     const hr = document.createElement('div'); hr.className='col-12 mt-2'; hr.innerHTML='<hr>'; salesContainer.appendChild(hr);
                     addOns.forEach(a => {
                       const id = 'inv_add_s_' + (a.name||'').replace(/[^A-Za-z0-9_]/g,'_');
-                      const col = document.createElement('div'); col.className = 'col-md-6';
-                      col.innerHTML = `<div class="form-check"><input class="form-check-input inv-svc-opt-sales" type="checkbox" id="${id}" value="${a.name}" data-minutes="${a.estimated_minutes||0}" data-price="0"><label class="form-check-label" for="${id}">${a.name} <small class="text-muted">(${a.estimated_minutes||0}m)</small></label></div>`;
+                      const col = document.createElement('div'); col.className = 'col-md-6 col-lg-4';
+                      col.innerHTML = `<div class="addon-checkbox-card"><input class="form-check-input inv-svc-opt-sales" type="checkbox" id="${id}" value="${a.name}" data-minutes="${a.estimated_minutes||0}" data-price="0"><label class="addon-checkbox-label" for="${id}"><div class="addon-checkbox-content"><div class="addon-checkbox-name">${a.name}</div><div class="addon-checkbox-duration"><i class="fa fa-clock-o me-1"></i>${a.estimated_minutes||0} mins</div></div></label></div>`;
                       salesContainer.appendChild(col);
                     });
                   }

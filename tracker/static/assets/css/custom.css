@@ -956,3 +956,247 @@ li:has(> a[href*="upgrade"]) {
 .existing-customer-modal .status-icon{width:40px;height:40px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}
 .existing-customer-card{border:2px solid #e9ecef;border-radius:.5rem;padding:1rem}
 .existing-customer-thumb{width:64px;height:40px;object-fit:cover;border-radius:.25rem;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+
+/* Card-like Checkbox Styling */
+
+/* Service Checkbox Card */
+.service-checkbox-card {
+  position: relative;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #fff;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.service-checkbox-card:hover {
+  border-color: var(--theme-default);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.service-checkbox-card input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.service-checkbox-card input[type="checkbox"]:checked + .service-checkbox-label {
+  color: #fff;
+}
+
+.service-checkbox-card input[type="checkbox"]:checked {
+  ~ .service-checkbox-label {
+    color: #fff;
+  }
+}
+
+.service-checkbox-card:has(input[type="checkbox"]:checked) {
+  border-color: var(--theme-default);
+  background: linear-gradient(135deg, var(--theme-default), rgba(var(--theme-default-rgb), 0.85));
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(var(--theme-default-rgb), 0.3);
+}
+
+.service-checkbox-label {
+  cursor: pointer;
+  width: 100%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.service-checkbox-content {
+  text-align: center;
+}
+
+.service-checkbox-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.3px;
+}
+
+.service-checkbox-duration {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+}
+
+.service-checkbox-card:has(input[type="checkbox"]:checked) .service-checkbox-duration {
+  opacity: 1;
+}
+
+/* Addon Checkbox Card */
+.addon-checkbox-card {
+  position: relative;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #fff;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.addon-checkbox-card:hover {
+  border-color: #ffc107;
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.15);
+  transform: translateY(-2px);
+}
+
+.addon-checkbox-card input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.addon-checkbox-card:has(input[type="checkbox"]:checked) {
+  border-color: #ffc107;
+  background: linear-gradient(135deg, #ffc107, rgba(255, 193, 7, 0.85));
+  color: #000;
+  box-shadow: 0 6px 16px rgba(255, 193, 7, 0.3);
+}
+
+.addon-checkbox-label {
+  cursor: pointer;
+  width: 100%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.addon-checkbox-content {
+  text-align: center;
+}
+
+.addon-checkbox-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.3px;
+}
+
+.addon-checkbox-duration {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+}
+
+.addon-checkbox-card:has(input[type="checkbox"]:checked) .addon-checkbox-duration {
+  opacity: 1;
+}
+
+/* Active/Toggle Checkbox Cards (for modal checkboxes) */
+.active-toggle-card {
+  position: relative;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.active-toggle-card:hover {
+  border-color: var(--theme-default);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.active-toggle-card input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.active-toggle-card:has(input[type="checkbox"]:checked) {
+  border-color: var(--theme-default);
+  background-color: rgba(var(--theme-default-rgb), 0.05);
+  box-shadow: 0 4px 12px rgba(var(--theme-default-rgb), 0.15);
+}
+
+.active-toggle-label {
+  cursor: pointer;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 1rem;
+  font-weight: 500;
+}
+
+.toggle-switch {
+  width: 48px;
+  height: 28px;
+  background-color: #e9ecef;
+  border-radius: 14px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #fff;
+  top: 2px;
+  left: 2px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.active-toggle-card input[type="checkbox"]:checked ~ .active-toggle-label .toggle-switch {
+  background-color: var(--theme-default);
+}
+
+.active-toggle-card input[type="checkbox"]:checked ~ .active-toggle-label .toggle-switch::after {
+  left: 22px;
+}
+
+/* Responsive adjustments for checkbox cards */
+@media (max-width: 768px) {
+  .service-checkbox-card,
+  .addon-checkbox-card {
+    min-height: 90px;
+    padding: 0.8rem;
+  }
+
+  .service-checkbox-name,
+  .addon-checkbox-name {
+    font-size: 0.9rem;
+  }
+
+  .service-checkbox-duration,
+  .addon-checkbox-duration {
+    font-size: 0.8rem;
+  }
+}

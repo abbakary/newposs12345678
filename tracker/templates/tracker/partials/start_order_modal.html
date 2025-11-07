@@ -311,8 +311,13 @@ function renderStartOrderOptions(failed){
       const safe = (opt.name||'').replace(/[^A-Za-z0-9_]/g,'_');
       const id = `opt_${safe}`;
       const minutes = Number(opt.estimated_minutes||0);
-      const col = document.createElement('div'); col.className = 'col-md-4';
-      col.innerHTML = `<div class="form-check"><input class="form-check-input so-option" type="checkbox" id="${id}" value="${opt.name}" data-minutes="${minutes}"><label class="form-check-label" for="${id}">${opt.name} <small class="text-muted">(${minutes}m)</small></label></div>`;
+      const col = document.createElement('div'); col.className = 'col-md-6 col-lg-4';
+      const cardClass = orderType === 'sales' ? 'addon-checkbox-card' : 'service-checkbox-card';
+      const labelClass = orderType === 'sales' ? 'addon-checkbox-label' : 'service-checkbox-label';
+      const contentClass = orderType === 'sales' ? 'addon-checkbox-content' : 'service-checkbox-content';
+      const nameClass = orderType === 'sales' ? 'addon-checkbox-name' : 'service-checkbox-name';
+      const durationClass = orderType === 'sales' ? 'addon-checkbox-duration' : 'service-checkbox-duration';
+      col.innerHTML = `<div class="${cardClass}"><input class="form-check-input so-option" type="checkbox" id="${id}" value="${opt.name}" data-minutes="${minutes}"><label class="${labelClass}" for="${id}"><div class="${contentClass}"><div class="${nameClass}">${opt.name}</div><div class="${durationClass}"><i class="fa fa-clock-o me-1"></i>${minutes} mins</div></div></label></div>`;
       wrapper.appendChild(col);
     });
   } else {
