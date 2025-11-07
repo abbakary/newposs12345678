@@ -34,8 +34,8 @@
     </div>
   </div>
 
-  <!-- Enhanced KPI Cards Section -->
-  <div class="row g-3 mb-4">
+  <!-- Enhanced KPI Cards Section - Regular Orders -->
+  <div id="regularOrdersKPIs" class="row g-3 mb-4" style="{% if order_view_mode == 'started' %}display: none;{% endif %}">
     <div class="col-xl-3 col-md-6">
       <div class="card kpi-card bg-primary text-white">
         <div class="card-body">
@@ -54,7 +54,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="col-xl-3 col-md-6">
       <div class="card kpi-card bg-warning text-dark">
         <div class="card-body">
@@ -73,7 +73,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="col-xl-3 col-md-6">
       <div class="card kpi-card bg-success text-white">
         <div class="card-body">
@@ -92,7 +92,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="col-xl-3 col-md-6">
       <div class="card kpi-card bg-danger text-white">
         <div class="card-body">
@@ -107,6 +107,85 @@
           </div>
           <div class="mt-2">
             <small class="opacity-75">Past their due date</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enhanced KPI Cards Section - Started Orders -->
+  <div id="startedOrdersKPIs" class="row g-3 mb-4" style="{% if order_view_mode != 'started' %}display: none;{% endif %}">
+    <div class="col-xl-3 col-md-6">
+      <div class="card kpi-card bg-info text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="card-title mb-1">Total Started</h6>
+              <h3 class="mb-0 fw-bold">{{ started_total|default:"0" }}</h3>
+            </div>
+            <div class="kpi-icon">
+              <i class="fa fa-play-circle fa-2x opacity-50"></i>
+            </div>
+          </div>
+          <div class="mt-2">
+            <small class="opacity-75">Orders in progress</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="card kpi-card bg-warning text-dark">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="card-title mb-1">Pending</h6>
+              <h3 class="mb-0 fw-bold">{{ started_pending|default:"0" }}</h3>
+            </div>
+            <div class="kpi-icon">
+              <i class="fa fa-hourglass fa-2x opacity-50"></i>
+            </div>
+          </div>
+          <div class="mt-2">
+            <small class="opacity-75">Awaiting completion</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="card kpi-card bg-success text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="card-title mb-1">Completed</h6>
+              <h3 class="mb-0 fw-bold">{{ started_completed|default:"0" }}</h3>
+            </div>
+            <div class="kpi-icon">
+              <i class="fa fa-check-circle fa-2x opacity-50"></i>
+            </div>
+          </div>
+          <div class="mt-2">
+            <small class="opacity-75">Finished orders</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="card kpi-card bg-primary text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="card-title mb-1">Documents Uploaded</h6>
+              <h3 class="mb-0 fw-bold">{{ documents_uploaded|default:"0" }}</h3>
+            </div>
+            <div class="kpi-icon">
+              <i class="fa fa-file-upload fa-2x opacity-50"></i>
+            </div>
+          </div>
+          <div class="mt-2">
+            <small class="opacity-75">Invoices extracted</small>
           </div>
         </div>
       </div>
