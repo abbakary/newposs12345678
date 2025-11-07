@@ -379,17 +379,9 @@ def dashboard(request: HttpRequest):
                     revenue_by_branch[b] = Decimal('0')
                 revenue_by_branch[b] += amount
 
-            # Build TSHS-specific view using branch totals (no currency on Invoice model; DocumentExtraction fallback below)
+            # Build TSHS-specific view using branch totals
             for b, amt in revenue_by_branch.items():
                 revenue_by_branch_tsh[b] = amt
-
-            # Fallback/incremental: include DocumentExtraction totals ONLY for records not tied to an Invoice
-            try:
-                de_sums = DocumentExtraction.objects.filter(document__order__isnull=True).aggregate(total_net=Sum('net_value'))
-                if de_sums.get('total_net'):
-                    total_revenue += Decimal(de_sums.get('total_net'))
-            except Exception:
-                pass
 
         except Exception as e:
             logger.error(f"Error aggregating revenue from invoices/payments: {e}")
