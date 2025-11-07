@@ -566,6 +566,58 @@ def api_record_overrun_reason(request, order_id):
 
 
 @login_required
+def overrun_reports(request: HttpRequest):
+    """Page showing reported order overruns and KPIs to help staff analyze delays."""
+    from django.db.models import Count, Avg, F
+
+    user_branch = get_user_branch(request.user)
+    qs = Order.objects.all()
+    if user_branch:
+        qs = qs.filter(branch=user_branch)
+
+    overruns = qs.filter(overrun_reason__isnull=False).order_by('-overrun_reported_at')
+    total_overruns = overruns.count()
+
+    # Average delay minutes: compute from estimated_duration and actual_duration where available
+    delays = overruns.annotate(delay_minutes=(F('actual_duration') - F('estimated_duration'))).filter(delay_minutes__isnull=False)
+    avg_delay = delays.aggregate(avg=Avg('delay_minutes'))['avg'] if delays.exists() else 0
+
+    completed_late = overruns.filter(status='completed').count()
+
+    # Top reasons
+    top_reasons = overruns.values('overrun_reason').annotate(count=Count('id')).order_by('-count')[:10]
+
+    # Recent overruns with computed delay minutes fallback
+    recent = []
+    for o in overruns[:50]:
+        try:
+            delay = None
+            if o.actual_duration and o.estimated_duration:
+                delay = max(0, int(o.actual_duration) - int(o.estimated_duration))
+        except Exception:
+            delay = None
+        recent.append({
+            'id': o.id,
+            'order_number': o.order_number,
+            'overrun_reason': o.overrun_reason,
+            'overrun_reported_by': o.overrun_reported_by,
+            'overrun_reported_at': o.overrun_reported_at,
+            'delay_minutes': delay,
+        })
+
+    context = {
+        'total_overruns': total_overruns,
+        'avg_delay': avg_delay or 0,
+        'completed_late': completed_late,
+        'unique_reasons': top_reasons.count() if hasattr(top_reasons, 'count') else len(top_reasons),
+        'top_reasons': top_reasons,
+        'recent_overruns': recent,
+    }
+
+    return render(request, 'tracker/overrun_reports.html', context)
+
+
+@login_required
 @require_http_methods(["POST"])
 def api_apply_extraction_to_order(request):
     """
