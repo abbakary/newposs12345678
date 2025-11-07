@@ -986,6 +986,136 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 });
+
+// Document Upload and Extraction
+function uploadDocument() {
+  const fileInput = document.getElementById('documentUploadInput');
+  const file = fileInput.files[0];
+
+  if (!file) {
+    alert('Please select a file');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('document_type', 'invoice');
+  formData.append('order_id', {{ order.id }});
+
+  const uploadBtn = document.getElementById('uploadDocumentBtn');
+  const progressContainer = document.getElementById('uploadProgressContainer');
+  const progressBar = document.getElementById('uploadProgressBar');
+  const statusText = document.getElementById('uploadStatusText');
+
+  uploadBtn.disabled = true;
+  fileInput.disabled = true;
+  progressContainer.style.display = 'block';
+
+  fetch('{% url "tracker:upload_document" %}', {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}'
+    },
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      progressBar.style.width = '100%';
+      statusText.textContent = 'Document uploaded! Processing extraction...';
+
+      setTimeout(function() {
+        location.reload();
+      }, 1000);
+    } else {
+      alert('Upload failed: ' + (data.error || 'Unknown error'));
+      uploadBtn.disabled = false;
+      fileInput.disabled = false;
+      progressContainer.style.display = 'none';
+    }
+  })
+  .catch(error => {
+    console.error('Error uploading document:', error);
+    alert('Error uploading document: ' + error.message);
+    uploadBtn.disabled = false;
+    fileInput.disabled = false;
+    progressContainer.style.display = 'none';
+  });
+}
+
+// Create Invoice from Extraction
+function showCreateInvoiceModal(extractionId) {
+  fetch('{% url "tracker:api_get_extraction" %}?extraction_id=' + extractionId, {
+    method: 'GET',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      const extraction = data.extraction;
+      document.getElementById('invoiceExtractionId').value = extractionId;
+
+      document.getElementById('previewCustomer').textContent = extraction.extracted_customer_name || '-';
+      document.getElementById('previewPlate').textContent = extraction.extracted_vehicle_plate || '-';
+      document.getElementById('previewDescription').textContent = extraction.extracted_order_description || '-';
+      document.getElementById('previewNetValue').textContent = extraction.net_value || '-';
+      document.getElementById('previewVatAmount').textContent = extraction.vat_amount || '-';
+
+      document.getElementById('invoiceReference').value = extraction.reference || extraction.extracted_vehicle_plate || '';
+
+      const modal = new bootstrap.Modal(document.getElementById('createInvoiceFromExtractionModal'));
+      modal.show();
+    } else {
+      alert('Failed to load extraction data: ' + (data.error || 'Unknown error'));
+    }
+  })
+  .catch(error => {
+    console.error('Error loading extraction:', error);
+    alert('Error loading extraction data');
+  });
+}
+
+function submitCreateInvoiceForm() {
+  const extractionId = document.getElementById('invoiceExtractionId').value;
+  const form = document.getElementById('createInvoiceForm');
+  const formData = new FormData(form);
+
+  fetch('{% url "tracker:api_create_invoice_from_extraction" %}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}'
+    },
+    body: JSON.stringify({
+      extraction_id: extractionId,
+      order_id: {{ order.id }},
+      reference: formData.get('reference'),
+      due_date: formData.get('due_date'),
+      tax_rate: formData.get('tax_rate'),
+      attended_by: formData.get('attended_by'),
+      kind_attention: formData.get('kind_attention'),
+      notes: formData.get('notes'),
+      terms: formData.get('terms')
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      const invoiceId = data.invoice_id;
+      alert('Invoice created successfully! Redirecting...');
+      window.location.href = '/tracker/invoice/' + invoiceId + '/';
+    } else {
+      alert('Failed to create invoice: ' + (data.error || 'Unknown error'));
+    }
+  })
+  .catch(error => {
+    console.error('Error creating invoice:', error);
+    alert('Error creating invoice: ' + error.message);
+  });
+}
 </script>
 
 {% endblock %}
