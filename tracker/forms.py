@@ -1209,6 +1209,24 @@ except Exception:
 
 class InvoiceForm(forms.ModelForm):
     # Inline customer fields to allow creating or selecting a customer while creating an invoice
+    # Plate search: find existing started orders to link to
+    plate_number = forms.CharField(
+        required=False,
+        label="Vehicle Plate Number (Search for existing started orders)",
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter plate (e.g., T 290)',
+            'data-role': 'plate-search',
+            'autocomplete': 'off'
+        })
+    )
+    # Selected started order ID: which order to link this invoice to
+    selected_order_id = forms.IntegerField(
+        required=False,
+        widget=forms.HiddenInput(),
+        label="Selected Started Order"
+    )
+
     existing_customer = forms.ModelChoiceField(queryset=None, required=False, widget=forms.Select(attrs={'class': 'form-select'}))
     customer_full_name = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Customer full name'}))
     customer_phone = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone number'}))
