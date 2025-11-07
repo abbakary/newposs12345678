@@ -315,9 +315,10 @@ def invoice_list(request, order_id=None):
 def invoice_print(request, pk):
     """Display invoice in print-friendly format"""
     invoice = get_object_or_404(Invoice, pk=pk)
-    return render(request, 'tracker/invoice_print.html', {
+    context = {
         'invoice': invoice,
-    })
+    }
+    return render(request, 'tracker/invoice_print.html', context)
 
 
 @login_required
