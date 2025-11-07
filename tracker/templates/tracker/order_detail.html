@@ -1065,7 +1065,8 @@
   const estimatedDuration = {{ order.estimated_duration|default:'null' }};
 
   function needsOverrun(){
-    if ('{{ order.type }}' !== 'service' || !estimatedDuration) return false;
+    const orderType = '{{ order.type }}';
+    if ((orderType !== 'service' && orderType !== 'inquiry' && orderType !== 'sales') || !estimatedDuration) return false;
     if (!startedAtStr) return false;
     try{
       const started = new Date(startedAtStr);

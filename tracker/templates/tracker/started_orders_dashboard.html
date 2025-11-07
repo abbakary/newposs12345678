@@ -1,0 +1,438 @@
+{% extends 'tracker/base.html' %}
+{% load static custom_filters tz %}
+{% load date_filters %}
+
+{% block title %}Started Orders Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="page-title">
+    <div class="row">
+      <div class="col-6">
+        <h4><i class="fa fa-play-circle me-2"></i>Started Orders Dashboard</h4>
+        <p class="text-muted small mt-1">Manage orders that have been initiated and are awaiting completion</p>
+      </div>
+      <div class="col-6">
+        <div class="d-flex justify-content-between align-items-start">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}"><i class="fa fa-home"></i></a></li>
+            <li class="breadcrumb-item"><a href="{% url 'tracker:orders_list' %}">Orders</a></li>
+            <li class="breadcrumb-item active">Started Orders</li>
+          </ol>
+          <a href="{% url 'tracker:orders_list' %}?view=started" class="btn btn-primary btn-sm">
+            <i class="fa fa-list me-1"></i>View All Orders
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Cards Section -->
+  <div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+      <div class="card kpi-card bg-info text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="card-title mb-1">Total Started</h6>
+              <h3 class="mb-0 fw-bold">{{ total_started|default:"0" }}</h3>
+            </div>
+            <div class="kpi-icon">
+              <i class="fa fa-play-circle fa-2x opacity-50"></i>
+            </div>
+          </div>
+          <div class="mt-2">
+            <small class="opacity-75">Orders in progress</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="card kpi-card bg-warning text-dark">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="card-title mb-1">Started Today</h6>
+              <h3 class="mb-0 fw-bold">{{ today_started|default:"0" }}</h3>
+            </div>
+            <div class="kpi-icon">
+              <i class="fa fa-calendar fa-2x opacity-50"></i>
+            </div>
+          </div>
+          <div class="mt-2">
+            <small class="opacity-75">Initiated today</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="card kpi-card bg-success text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="card-title mb-1">Repeated Vehicles</h6>
+              <h3 class="mb-0 fw-bold">{{ repeated_vehicles_today|default:"0" }}</h3>
+            </div>
+            <div class="kpi-icon">
+              <i class="fa fa-refresh fa-2x opacity-50"></i>
+            </div>
+          </div>
+          <div class="mt-2">
+            <small class="opacity-75">Multiple orders today</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="card kpi-card bg-primary text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="card-title mb-1">Unique Plates</h6>
+              <h3 class="mb-0 fw-bold">{{ orders_by_plate|length|default:"0" }}</h3>
+            </div>
+            <div class="kpi-icon">
+              <i class="fa fa-car fa-2x opacity-50"></i>
+            </div>
+          </div>
+          <div class="mt-2">
+            <small class="opacity-75">Different vehicles</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search & Filters Section -->
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <h6 class="mb-0"><i class="fa fa-search me-2"></i>Search & Filters</h6>
+        </div>
+        <div class="card-body">
+          <form method="get" class="started-orders-search-form">
+            <div class="row g-3 align-items-end">
+              <div class="col-xl-3 col-lg-4 col-md-6">
+                <label class="form-label fw-medium">Search by Plate or Customer</label>
+                <input 
+                  type="text" 
+                  name="search" 
+                  class="form-control" 
+                  placeholder="Enter plate number or customer name..."
+                  value="{{ search_query|default:'' }}"
+                  autofocus>
+              </div>
+              <div class="col-xl-2 col-lg-4 col-md-6">
+                <label class="form-label fw-medium">Sort By</label>
+                <select name="sort_by" class="form-select">
+                  <option value="-started_at" {% if sort_by == '-started_at' %}selected{% endif %}>Newest First</option>
+                  <option value="started_at" {% if sort_by == 'started_at' %}selected{% endif %}>Oldest First</option>
+                  <option value="plate_number" {% if sort_by == 'plate_number' %}selected{% endif %}>Plate Number</option>
+                  <option value="type" {% if sort_by == 'type' %}selected{% endif %}>Order Type</option>
+                </select>
+              </div>
+              <div class="col-xl-2 col-lg-4 col-md-6">
+                <label class="form-label fw-medium">Status</label>
+                <select name="status" class="form-select">
+                  <option value="created" {% if status_filter == 'created' %}selected{% endif %}>Created</option>
+                  <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+                  <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                </select>
+              </div>
+              <div class="col-xl-3 col-lg-4 col-md-6">
+                <div class="d-flex gap-2 h-100 pt-3">
+                  <button class="btn btn-primary flex-fill" type="submit">
+                    <i class="fa fa-search me-1"></i>Search
+                  </button>
+                  {% if search_query or status_filter != 'created' %}
+                  <a href="{% url 'tracker:started_orders_dashboard' %}" class="btn btn-outline-secondary" title="Clear Filters">
+                    <i class="fa fa-times"></i>
+                  </a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Started Orders List -->
+  {% if orders %}
+  <div class="row g-3">
+    {% for order in orders %}
+    <div class="col-xl-4 col-lg-6 col-md-12">
+      <div class="card started-order-card shadow-sm h-100 border-start border-4" style="border-color: {% if order.status == 'created' %}#667eea{% elif order.status == 'in_progress' %}#ffc107{% else %}#28a745{% endif %} !important;">
+        <div class="card-header bg-white d-flex justify-content-between align-items-start">
+          <div>
+            <h6 class="card-title mb-1">
+              <a href="{% url 'tracker:started_order_detail' order_id=order.id %}" class="text-decoration-none">
+                {{ order.order_number }}
+              </a>
+            </h6>
+            <small class="text-muted">
+              <i class="fa fa-clock me-1"></i>
+              {{ order.started_at|localtime|date_medium }}
+            </small>
+          </div>
+          <div>
+            {% if order.status == 'created' %}
+              <span class="badge bg-secondary rounded-pill"><i class="fa fa-play me-1"></i>Created</span>
+            {% elif order.status == 'in_progress' %}
+              <span class="badge bg-warning text-dark rounded-pill"><i class="fa fa-clock me-1"></i>In Progress</span>
+            {% elif order.status == 'completed' %}
+              <span class="badge bg-success rounded-pill"><i class="fa fa-check me-1"></i>Completed</span>
+            {% else %}
+              <span class="badge bg-light text-dark rounded-pill">{{ order.status }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card-body">
+          <!-- Plate Number -->
+          <div class="mb-3">
+            <small class="text-muted d-block fw-medium">Vehicle Plate</small>
+            <h5 class="mb-0 text-uppercase fw-bold" style="letter-spacing: 0.1em;">
+              {{ order.vehicle.plate_number|default:"Not Set" }}
+            </h5>
+          </div>
+
+          <!-- Customer Information -->
+          <div class="mb-3 pb-3 border-bottom">
+            <small class="text-muted d-block fw-medium">Customer</small>
+            <a href="{% url 'tracker:customer_detail' pk=order.customer.id %}" class="text-decoration-none">
+              <p class="mb-1 fw-semibold">{{ order.customer.full_name }}</p>
+              <small class="text-muted"><i class="fa fa-phone me-1"></i>{{ order.customer.phone }}</small>
+            </a>
+          </div>
+
+          <!-- Order Details -->
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <small class="text-muted d-block fw-medium">Type</small>
+              {% if order.type == 'service' %}
+                <span class="badge bg-primary rounded-pill"><i class="fa fa-wrench me-1"></i>Service</span>
+              {% elif order.type == 'sales' %}
+                <span class="badge bg-success rounded-pill"><i class="fa fa-shopping-cart me-1"></i>Sales</span>
+              {% elif order.type == 'inquiry' %}
+                <span class="badge bg-info rounded-pill"><i class="fa fa-question-circle me-1"></i>Inquiry</span>
+              {% else %}
+                <span class="badge bg-secondary rounded-pill">{{ order.type }}</span>
+              {% endif %}
+            </div>
+            <div class="col-6">
+              <small class="text-muted d-block fw-medium">Documents</small>
+              {% if order.document_scans.count > 0 %}
+                <span class="badge bg-success rounded-pill">{{ order.document_scans.count }} <i class="fa fa-file me-1"></i></span>
+              {% else %}
+                <span class="badge bg-light text-muted">None</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Vehicle Info -->
+          {% if order.vehicle.make or order.vehicle.model %}
+          <div class="mb-3 pb-3 border-bottom">
+            <small class="text-muted d-block fw-medium">Vehicle Details</small>
+            <small class="text-muted">
+              {{ order.vehicle.make }} {{ order.vehicle.model }}
+              {% if order.vehicle.year %}<span class="ms-1">({{ order.vehicle.year }})</span>{% endif %}
+            </small>
+          </div>
+          {% endif %}
+
+          <!-- Time Info -->
+          {% if order.started_at %}
+          <div class="mb-3">
+            <small class="text-muted d-block fw-medium">Elapsed Time</small>
+            <div class="time-value fw-semibold">{{ order|elapsed_minutes|format_minutes }}</div>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Card Actions -->
+        <div class="card-footer bg-light border-top">
+          <div class="d-flex gap-2">
+            <a href="{% url 'tracker:started_order_detail' order_id=order.id %}" class="btn btn-sm btn-outline-primary flex-fill">
+              <i class="fa fa-eye me-1"></i>View
+            </a>
+            <a href="{% url 'tracker:started_order_detail' order_id=order.id %}?tab=documents" class="btn btn-sm btn-outline-info flex-fill">
+              <i class="fa fa-file-upload me-1"></i>Documents
+            </a>
+            {% if order.status != 'completed' %}
+            <form method="post" action="{% url 'tracker:complete_order' pk=order.id %}" class="flex-fill" onsubmit="return confirm('Mark this order as completed?');">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-success w-100">
+                <i class="fa fa-check me-1"></i>Complete
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Empty State -->
+  {% else %}
+  <div class="card shadow-sm">
+    <div class="card-body text-center py-5">
+      <div class="d-flex flex-column align-items-center">
+        <i class="fa fa-inbox fa-3x mb-3 text-muted opacity-50"></i>
+        <h5 class="text-muted mb-2">No started orders found</h5>
+        <p class="text-muted mb-4">
+          {% if search_query %}
+            No orders match your search criteria "{{ search_query }}"
+          {% else %}
+            There are no started orders to display. <a href="{% url 'tracker:orders_list' %}?view=started" class="text-decoration-none">Start a new order</a> to begin.
+          {% endif %}
+        </p>
+        {% if search_query %}
+        <a href="{% url 'tracker:started_orders_dashboard' %}" class="btn btn-outline-primary">
+          <i class="fa fa-times me-1"></i>Clear Search
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+/* KPI Cards */
+.kpi-card {
+  border: none;
+  border-radius: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.kpi-icon {
+  opacity: 0.8;
+}
+
+/* Started Order Cards */
+.started-order-card {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.started-order-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
+}
+
+.started-order-card .card-title a {
+  color: #212529;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.started-order-card .card-title a:hover {
+  color: #0d6efd;
+}
+
+.started-order-card .card-header {
+  border-bottom: 1px solid #e9ecef;
+  padding: 1rem;
+}
+
+.started-order-card .card-body {
+  padding: 1rem;
+}
+
+.started-order-card .card-footer {
+  padding: 0.75rem;
+  background-color: #f8f9fa !important;
+}
+
+.started-order-card .btn-outline-primary:hover,
+.started-order-card .btn-outline-info:hover,
+.started-order-card .btn-outline-success:hover {
+  font-weight: 500;
+}
+
+/* Search Form */
+.started-orders-search-form {
+  margin: 0;
+}
+
+.started-orders-search-form .form-control,
+.started-orders-search-form .form-select {
+  border-radius: 8px;
+}
+
+.started-orders-search-form .form-control:focus,
+.started-orders-search-form .form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Time Value Display */
+.time-value {
+  font-size: 1.1rem;
+  color: #212529;
+  line-height: 1.5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .kpi-icon {
+    display: none;
+  }
+
+  .started-order-card {
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .kpi-card .card-body {
+    padding: 1rem;
+  }
+
+  .started-order-card .card-body {
+    padding: 0.75rem;
+  }
+
+  .started-order-card .card-footer .d-flex {
+    flex-direction: column;
+  }
+
+  .started-order-card .card-footer .btn {
+    width: 100%;
+  }
+}
+
+/* Empty State */
+.card-body.text-center {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 12px;
+}
+
+/* Page Title */
+.page-title h4 {
+  color: #212529;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.page-title .text-muted {
+  font-weight: 400;
+  letter-spacing: 0.3px;
+}
+</style>
+
+{% endblock %}
