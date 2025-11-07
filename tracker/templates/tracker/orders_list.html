@@ -8,12 +8,28 @@
 <div class="container-fluid">
   <div class="page-title">
     <div class="row">
-      <div class="col-6"><h4>Orders</h4></div>
       <div class="col-6">
-        <ol class="breadcrumb">
-          <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}"><i class="fa fa-home"></i></a></li>
-          <li class="breadcrumb-item active">Orders</li>
-        </ol>
+        <h4>Orders</h4>
+        <!-- Tab Toggle for Regular vs Started Orders -->
+        <div class="btn-group mt-2" role="tablist">
+          <button class="btn btn-outline-primary btn-sm {% if order_view_mode == 'regular' %}active{% endif %}" type="button" onclick="switchOrderView('regular')">
+            <i class="fa fa-list me-1"></i>Regular Orders
+          </button>
+          <button class="btn btn-outline-warning btn-sm {% if order_view_mode == 'started' %}active{% endif %}" type="button" onclick="switchOrderView('started')">
+            <i class="fa fa-play-circle me-1"></i>Started Orders
+          </button>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="d-flex justify-content-between align-items-start">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}"><i class="fa fa-home"></i></a></li>
+            <li class="breadcrumb-item active">Orders</li>
+          </ol>
+          <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#startOrderModal" title="Start a new order">
+            <i class="fa fa-plus me-1"></i> Start New Order
+          </button>
+        </div>
       </div>
     </div>
   </div>
