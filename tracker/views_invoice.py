@@ -22,6 +22,55 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
+@require_http_methods(["GET"])
+def api_search_started_orders(request):
+    """
+    API endpoint to search for started orders by vehicle plate number.
+    Used for autocomplete/dropdown in invoice creation form.
+
+    Query parameters:
+    - plate: vehicle plate number (required)
+
+    Returns JSON with list of available started orders
+    """
+    from django.http import JsonResponse
+    from .services import OrderService
+
+    plate = (request.GET.get('plate') or '').strip().upper()
+    if not plate:
+        return JsonResponse({'success': False, 'message': 'Plate number required', 'orders': []})
+
+    try:
+        user_branch = get_user_branch(request.user)
+        orders = OrderService.find_all_started_orders_for_plate(user_branch, plate)
+
+        orders_data = []
+        for order in orders:
+            orders_data.append({
+                'id': order.id,
+                'order_number': order.order_number or f"ORD{order.id}",
+                'plate_number': order.vehicle.plate_number if order.vehicle else plate,
+                'customer': {
+                    'id': order.customer.id,
+                    'name': order.customer.full_name,
+                    'phone': order.customer.phone
+                } if order.customer else None,
+                'started_at': order.started_at.isoformat() if order.started_at else order.created_at.isoformat(),
+                'type': order.type,
+                'status': order.status
+            })
+
+        return JsonResponse({
+            'success': True,
+            'orders': orders_data,
+            'count': len(orders_data)
+        })
+    except Exception as e:
+        logger.warning(f"Error searching started orders by plate: {e}")
+        return JsonResponse({'success': False, 'message': str(e), 'orders': []})
+
+
+@login_required
 def invoice_create(request, order_id=None):
     """Create a new invoice, optionally linked to an existing started order"""
     from .services import CustomerService, VehicleService, OrderService
