@@ -395,13 +395,39 @@ def api_create_invoice_from_extraction(request):
             except Exception as e:
                 logger.warning(f"Failed to create vehicle: {e}")
 
-        # Get existing order if provided
+        # Get existing order if provided, or try to find one by plate
         order = None
         if order_id:
             try:
                 order = Order.objects.get(id=order_id, branch=user_branch)
             except Order.DoesNotExist:
                 pass
+
+        # If no order provided, try to find an existing started order by plate
+        if not order and vehicle:
+            order = Order.objects.filter(
+                vehicle=vehicle,
+                status='created'
+            ).order_by('-created_at').first()
+
+        # If still no order, try to find by extracted plate
+        if not order and extraction.extracted_vehicle_plate:
+            existing_vehicle = Vehicle.objects.filter(
+                plate_number__iexact=extraction.extracted_vehicle_plate,
+                customer__branch=user_branch
+            ).select_related('customer').first()
+            if existing_vehicle:
+                order = Order.objects.filter(
+                    vehicle=existing_vehicle,
+                    status='created'
+                ).order_by('-created_at').first()
+
+        # Determine invoice date: prefer extracted date, then order start time, then current date
+        invoice_date = timezone.now().date()
+        if extraction.invoice_date:
+            invoice_date = extraction.invoice_date
+        elif order and order.started_at:
+            invoice_date = order.started_at.date()
 
         # Create invoice
         with transaction.atomic():
@@ -411,10 +437,10 @@ def api_create_invoice_from_extraction(request):
                 customer=customer,
                 vehicle=vehicle,
                 reference=data.get('reference') or extraction.reference or extraction.extracted_vehicle_plate or '',
-                invoice_date=timezone.now().date(),
-                due_date=data.get('due_date') or None,
+                invoice_date=invoice_date,
+                due_date=data.get('due_date') or extraction.del_date or None,
                 tax_rate=data.get('tax_rate') or 0,
-                attended_by=data.get('attended_by') or '',
+                attended_by=data.get('attended_by') or extraction.attended_by or '',
                 kind_attention=data.get('kind_attention') or '',
                 notes=data.get('notes') or '',
                 terms=data.get('terms') or (
@@ -433,14 +459,29 @@ def api_create_invoice_from_extraction(request):
                 items = extraction.items.all()
                 if items:
                     for item in items:
+                        unit_price = item.rate or Decimal('0')
+                        quantity = item.qty or Decimal('1')
+
+                        # Determine tax rate: use item VAT if available, else invoice rate
+                        item_tax_rate = Decimal('0')
+                        if item.vat and item.value:
+                            # Calculate tax rate from VAT amount: tax_rate = (vat / value) * 100
+                            try:
+                                item_tax_rate = (item.vat / item.value) * 100
+                            except Exception:
+                                item_tax_rate = invoice.tax_rate or Decimal('0')
+                        else:
+                            item_tax_rate = invoice.tax_rate or Decimal('0')
+
                         InvoiceLineItem.objects.create(
                             invoice=invoice,
+                            code=item.code or '',
                             description=item.description or '',
                             item_type='custom',
-                            quantity=item.qty or 1,
+                            quantity=quantity,
                             unit=item.unit or 'PCS',
-                            unit_price=item.rate or 0,
-                            tax_rate=invoice.tax_rate,
+                            unit_price=unit_price,
+                            tax_rate=item_tax_rate,
                         )
                 elif extraction.extracted_amount or extraction.gross_value:
                     # Create a single line item if we have amount but no itemized details

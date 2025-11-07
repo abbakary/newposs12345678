@@ -470,7 +470,7 @@
         {% for item in invoice.line_items.all %}
         <tr>
           <td>{{ forloop.counter }}</td>
-          <td>{{ item.inventory_item.sku|default:"" }}</td>
+          <td>{{ item.code|default:item.inventory_item.sku|default:"" }}</td>
           <td><strong>{{ item.description }}</strong></td>
           <td>{{ item.unit|default:item.get_item_type_display }}</td>
           <td class="text-right">{{ item.quantity }}</td>

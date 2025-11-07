@@ -498,9 +498,16 @@ class DocumentExtraction(models.Model):
     extracted_amount = models.CharField(max_length=32, blank=True, null=True)
     extracted_currency = models.CharField(max_length=16, blank=True, null=True)
 
-    # Invoice metadata
+    # Invoice metadata - Proforma/Invoice specific fields
     code_no = models.CharField(max_length=64, blank=True, null=True, help_text='Customer / code number from invoice (Code No)')
     reference = models.CharField(max_length=64, blank=True, null=True, help_text='Reference field from invoice (often plate)')
+    pi_no = models.CharField(max_length=64, blank=True, null=True, help_text='Proforma Invoice Number (PI No)')
+    invoice_date = models.DateField(blank=True, null=True, help_text='Invoice/PI date extracted from document')
+    del_date = models.DateField(blank=True, null=True, help_text='Delivery date from invoice')
+    attended_by = models.CharField(max_length=255, blank=True, null=True, help_text='Attended by field from invoice')
+    extracted_customer_tel = models.CharField(max_length=20, blank=True, null=True, help_text='Customer Tel from invoice (Tel field)')
+
+    # Financial summary fields
     net_value = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     vat_amount = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     gross_value = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
@@ -528,12 +535,15 @@ class DocumentExtractionItem(models.Model):
     """Store individual extracted line items for a document extraction."""
     extraction = models.ForeignKey(DocumentExtraction, on_delete=models.CASCADE, related_name='items')
     line_no = models.PositiveIntegerField(null=True, blank=True, help_text='Line number in document (if available)')
-    code = models.CharField(max_length=128, blank=True, null=True, db_index=True)
-    description = models.TextField(blank=True, null=True)
-    qty = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    unit = models.CharField(max_length=16, blank=True, null=True)
-    rate = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
-    value = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    code = models.CharField(max_length=128, blank=True, null=True, db_index=True, help_text='Item code from invoice')
+    description = models.TextField(blank=True, null=True, help_text='Item description')
+    qty = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text='Quantity')
+    unit = models.CharField(max_length=16, blank=True, null=True, help_text='Unit (PCS, PKG, etc)')
+    rate = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True, help_text='Rate/Unit Price (Rate TSH)')
+    value = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True, help_text='Line value (Value TSH)')
+    net_value = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True, help_text='Net value (Net Value)')
+    vat = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True, help_text='VAT amount')
+    gross_value = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True, help_text='Gross value (Gross Value)')
 
     class Meta:
         ordering = ['extraction', 'line_no']
@@ -737,6 +747,7 @@ class InvoiceLineItem(models.Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='line_items')
 
     # Item details
+    code = models.CharField(max_length=128, blank=True, null=True, help_text='Item code from invoice')
     description = models.CharField(max_length=255)
     item_type = models.CharField(
         max_length=16,

@@ -88,6 +88,7 @@ def _extract_document_worker(document_scan_id):
                     extracted_customer_phone=extracted_data.get('customer_phone') or extracted_data.get('extracted_customer_phone'),
                     extracted_customer_email=extracted_data.get('customer_email') or extracted_data.get('extracted_customer_email'),
                     extracted_customer_address=extracted_data.get('address') or extracted_data.get('extracted_customer_address'),
+                    extracted_customer_tel=extracted_data.get('customer_tel') or extracted_data.get('extracted_customer_tel'),
                     extracted_vehicle_plate=extracted_data.get('plate_number') or extracted_data.get('extracted_vehicle_plate'),
                     extracted_order_description=extracted_data.get('service_description') or extracted_data.get('extracted_order_description'),
                     extracted_item_name=extracted_data.get('item_name'),
@@ -96,6 +97,10 @@ def _extract_document_worker(document_scan_id):
                     extracted_amount=extracted_data.get('amount') or extracted_data.get('extracted_amount'),
                     code_no=extracted_data.get('code_no') or extracted_data.get('customer_code'),
                     reference=extracted_data.get('reference'),
+                    pi_no=extracted_data.get('pi_no'),
+                    invoice_date=_parse_date_safe(extracted_data.get('invoice_date')),
+                    del_date=_parse_date_safe(extracted_data.get('del_date')),
+                    attended_by=extracted_data.get('attended_by'),
                     net_value=_to_decimal_safe(extracted_data.get('net_value') or extracted_data.get('net')),
                     vat_amount=_to_decimal_safe(extracted_data.get('vat_amount') or extracted_data.get('vat')),
                     gross_value=_to_decimal_safe(extracted_data.get('gross_value') or extracted_data.get('gross')),
@@ -117,6 +122,9 @@ def _extract_document_worker(document_scan_id):
                             unit = it.get('unit') or it.get('type')
                             rate = it.get('rate')
                             value = it.get('value')
+                            net_val = it.get('net_value')
+                            vat_val = it.get('vat')
+                            gross_val = it.get('gross_value')
 
                             def _to_decimal(v):
                                 try:
@@ -132,6 +140,9 @@ def _extract_document_worker(document_scan_id):
                             qty_d = _to_decimal(qty)
                             rate_d = _to_decimal(rate)
                             value_d = _to_decimal(value)
+                            net_d = _to_decimal(net_val)
+                            vat_d = _to_decimal(vat_val)
+                            gross_d = _to_decimal(gross_val)
 
                             DocumentExtractionItem.objects.create(
                                 extraction=extraction,
@@ -142,6 +153,9 @@ def _extract_document_worker(document_scan_id):
                                 unit=unit,
                                 rate=rate_d,
                                 value=value_d,
+                                net_value=net_d,
+                                vat=vat_d,
+                                gross_value=gross_d,
                             )
                 except Exception as e:
                     logger.warning(f"Failed to save extracted items: {e}")
@@ -190,6 +204,23 @@ def _extract_document_worker(document_scan_id):
     except Exception as e:
         logger.error(f"Error in extraction worker: {str(e)}")
         _set_extraction_progress(document_scan_id, 'failed', 0, str(e))
+
+
+def _parse_date_safe(date_str):
+    """Parse date string to date object safely."""
+    if not date_str:
+        return None
+    try:
+        from datetime import datetime
+        if isinstance(date_str, str):
+            for fmt in ('%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d', '%m/%d/%Y'):
+                try:
+                    return datetime.strptime(date_str, fmt).date()
+                except ValueError:
+                    continue
+        return None
+    except Exception:
+        return None
 
 
 def _try_auto_apply_extraction(doc_scan, extraction, extracted_data, user_branch):

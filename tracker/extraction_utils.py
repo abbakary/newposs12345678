@@ -66,6 +66,58 @@ class InvoiceExtractor:
                     'priority': 5,
                 },
             ],
+            'pi_no': [
+                {
+                    'name': 'PI No label',
+                    'regex': r'(?mi)^\s*(?:PI\s*No\.?|P\.I\.\s*No\.?|Proforma\s*(?:Invoice\s*)?No\.?)\s*[:\-]?\s*([A-Z0-9\-/]+)\s*$',
+                    'group': 1,
+                    'priority': 5,
+                },
+                {
+                    'name': 'Invoice number from header',
+                    'regex': r'(?:Proforma\s+Invoice|Invoice)\s*(?:No\.?|#)\s*[:\-]?\s*([A-Z0-9\-/]+)',
+                    'group': 1,
+                    'priority': 10,
+                },
+            ],
+            'invoice_date': [
+                {
+                    'name': 'Date label',
+                    'regex': r'(?mi)^\s*Date\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s*$',
+                    'group': 1,
+                    'priority': 5,
+                },
+            ],
+            'del_date': [
+                {
+                    'name': 'Delivery Date label',
+                    'regex': r'(?mi)^\s*Del\.?\s*Date\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s*$',
+                    'group': 1,
+                    'priority': 5,
+                },
+            ],
+            'customer_tel': [
+                {
+                    'name': 'Tel label exact',
+                    'regex': r'(?mi)^\s*Tel\s*[:\-]?\s*(\+?255\s?\d{3}\s?\d{3}\s?\d{3}|0[67]\d{2}\s?\d{3}\s?\d{3}|\+?\d{7,15})\s*$',
+                    'group': 1,
+                    'priority': 5,
+                },
+                {
+                    'name': 'Tel label TZ formats',
+                    'regex': r'(?:Tel|Telephone|Phone)[\s:]*(\+?255\s?\d{3}\s?\d{3}\s?\d{3}|0[67]\d{2}\s?\d{3}\s?\d{3}|\+?\d{7,15})',
+                    'group': 1,
+                    'priority': 10,
+                },
+            ],
+            'attended_by': [
+                {
+                    'name': 'Attended by label',
+                    'regex': r'(?mi)^\s*Attended\s*(?:by|By)\s*[:\-]?\s*([^\n]+?)\s*$',
+                    'group': 1,
+                    'priority': 5,
+                },
+            ],
             'plate_number': [
                 {
                     'name': 'Plate in reference field',
@@ -204,7 +256,7 @@ class InvoiceExtractor:
         amount_str = self.extract_field(text, 'amount')
         if not amount_str:
             return None
-        
+
         try:
             # Remove non-numeric characters except decimal point
             amount_str = re.sub(r'[^\d.]', '', amount_str)
@@ -212,6 +264,26 @@ class InvoiceExtractor:
         except Exception as e:
             logger.warning(f"Error parsing amount '{amount_str}': {str(e)}")
             return None
+
+    def extract_pi_no(self, text: str) -> Optional[str]:
+        """Extract Proforma Invoice Number (PI No)."""
+        return self.extract_field(text, 'pi_no')
+
+    def extract_invoice_date(self, text: str) -> Optional[str]:
+        """Extract invoice date from text."""
+        return self.extract_field(text, 'invoice_date')
+
+    def extract_del_date(self, text: str) -> Optional[str]:
+        """Extract delivery date from text."""
+        return self.extract_field(text, 'del_date')
+
+    def extract_customer_tel(self, text: str) -> Optional[str]:
+        """Extract customer telephone from text."""
+        return self.extract_field(text, 'customer_tel')
+
+    def extract_attended_by(self, text: str) -> Optional[str]:
+        """Extract attended by field from text."""
+        return self.extract_field(text, 'attended_by')
     
     def match_service_template(self, description: str) -> Optional[Tuple[str, int]]:
         """
@@ -243,29 +315,33 @@ class InvoiceExtractor:
     def extract_all(self, text: str) -> Dict:
         """
         Extract all available fields from invoice text.
-        
+
         Args:
             text: Raw invoice text
-        
+
         Returns:
             Dictionary with extracted fields
         """
         self._load_patterns_from_db()
-        
+
         extracted = {
             'plate_number': self.extract_field(text, 'plate_number'),
             'customer_name': self.extract_field(text, 'customer_name'),
             'customer_phone': self.extract_field(text, 'customer_phone'),
             'customer_email': self.extract_field(text, 'customer_email'),
+            'customer_tel': self.extract_customer_tel(text),
             'address': self.extract_field(text, 'address'),
             'service_description': self.extract_field(text, 'service_description'),
             'item_name': self.extract_field(text, 'service_description'),
             'quantity': self.extract_field(text, 'quantity'),
             'amount': str(self.extract_amount(text)) if self.extract_amount(text) else None,
             'reference': self.extract_field(text, 'reference'),
-            # provide both keys so mappers downstream can populate either
             'code_no': self.extract_field(text, 'code_no'),
-            'customer_code': self.extract_field(text, 'code_no')
+            'customer_code': self.extract_field(text, 'code_no'),
+            'pi_no': self.extract_pi_no(text),
+            'invoice_date': self.extract_invoice_date(text),
+            'del_date': self.extract_del_date(text),
+            'attended_by': self.extract_attended_by(text),
         }
 
         # Fallback: some layouts put value on the next line after the label
@@ -437,6 +513,9 @@ def process_invoice_extraction(document_scan) -> Dict:
                     qty = it.get('qty')
                     rate = it.get('rate') or it.get('rate_tsh')
                     value = it.get('value') or it.get('amount') or it.get('value_tsh')
+                    net_val = it.get('net_value')
+                    vat_val = it.get('vat')
+                    gross_val = it.get('gross_value')
 
                     def _to_decimal(v):
                         try:
@@ -452,6 +531,9 @@ def process_invoice_extraction(document_scan) -> Dict:
                     qty_d = _to_decimal(qty)
                     rate_d = _to_decimal(rate)
                     value_d = _to_decimal(value)
+                    net_d = _to_decimal(net_val)
+                    vat_d = _to_decimal(vat_val)
+                    gross_d = _to_decimal(gross_val)
 
                     normalized_items.append({
                         'line_no': idx,
@@ -461,6 +543,9 @@ def process_invoice_extraction(document_scan) -> Dict:
                         'unit': it.get('unit') or None,
                         'rate': rate_d,
                         'value': value_d,
+                        'net_value': net_d,
+                        'vat': vat_d,
+                        'gross_value': gross_d,
                     })
 
                 if normalized_items:

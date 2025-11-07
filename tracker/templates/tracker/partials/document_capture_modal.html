@@ -223,6 +223,81 @@
                                 </div>
                             </div>
 
+                            <!-- Invoice/Proforma Data -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">
+                                        <i class="fa fa-file-invoice me-2"></i>Invoice Information
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Code No (Customer Code)</label>
+                                                <p id="extractedCodeNo" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">PI No (Proforma Invoice Number)</label>
+                                                <p id="extractedPiNo" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Invoice Date</label>
+                                                <p id="extractedInvoiceDate" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Delivery Date (Del.Date)</label>
+                                                <p id="extractedDelDate" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Tel (Customer Telephone)</label>
+                                                <p id="extractedCustomerTel" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Attended By</label>
+                                                <p id="extractedAttendedBy" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="small text-muted">Address</label>
+                                        <p id="extractedAddress" class="fw-bold">-</p>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Net Value</label>
+                                                <p id="extractedNetValue" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">VAT Amount</label>
+                                                <p id="extractedVatAmount" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="small text-muted">Gross Value</label>
+                                        <p id="extractedGrossValue" class="fw-bold">-</p>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Order/Service Data -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light">
@@ -449,12 +524,29 @@ class DocumentCaptureModal {
     displayExtractionResults(data) {
         const extracted = data.extracted_data || {};
 
+        // Customer Information
         document.getElementById('extractedCustomerName').textContent = extracted.customer_name || '-';
         document.getElementById('extractedCustomerPhone').textContent = extracted.customer_phone || '-';
         document.getElementById('extractedCustomerEmail').textContent = extracted.email || '-';
+
+        // Vehicle Information
         document.getElementById('extractedVehiclePlate').textContent = extracted.vehicle_plate || '-';
         document.getElementById('extractedVehicleMake').textContent = extracted.vehicle_make || '-';
         document.getElementById('extractedVehicleModel').textContent = extracted.vehicle_model || '-';
+
+        // Invoice/Proforma Information
+        document.getElementById('extractedCodeNo').textContent = extracted.code_no || '-';
+        document.getElementById('extractedPiNo').textContent = extracted.pi_no || '-';
+        document.getElementById('extractedInvoiceDate').textContent = extracted.invoice_date || '-';
+        document.getElementById('extractedDelDate').textContent = extracted.del_date || '-';
+        document.getElementById('extractedCustomerTel').textContent = extracted.customer_tel || '-';
+        document.getElementById('extractedAttendedBy').textContent = extracted.attended_by || '-';
+        document.getElementById('extractedAddress').textContent = extracted.address || '-';
+        document.getElementById('extractedNetValue').textContent = extracted.net_value || '-';
+        document.getElementById('extractedVatAmount').textContent = extracted.vat_amount || '-';
+        document.getElementById('extractedGrossValue').textContent = extracted.gross_value || '-';
+
+        // Service Information
         document.getElementById('extractedServiceType').textContent = extracted.service_type || '-';
         document.getElementById('extractedItemName').textContent = extracted.item_name || '-';
         document.getElementById('extractedBrand').textContent = extracted.brand || '-';
