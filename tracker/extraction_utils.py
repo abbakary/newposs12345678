@@ -66,6 +66,58 @@ class InvoiceExtractor:
                     'priority': 5,
                 },
             ],
+            'pi_no': [
+                {
+                    'name': 'PI No label',
+                    'regex': r'(?mi)^\s*(?:PI\s*No\.?|P\.I\.\s*No\.?|Proforma\s*(?:Invoice\s*)?No\.?)\s*[:\-]?\s*([A-Z0-9\-/]+)\s*$',
+                    'group': 1,
+                    'priority': 5,
+                },
+                {
+                    'name': 'Invoice number from header',
+                    'regex': r'(?:Proforma\s+Invoice|Invoice)\s*(?:No\.?|#)\s*[:\-]?\s*([A-Z0-9\-/]+)',
+                    'group': 1,
+                    'priority': 10,
+                },
+            ],
+            'invoice_date': [
+                {
+                    'name': 'Date label',
+                    'regex': r'(?mi)^\s*Date\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s*$',
+                    'group': 1,
+                    'priority': 5,
+                },
+            ],
+            'del_date': [
+                {
+                    'name': 'Delivery Date label',
+                    'regex': r'(?mi)^\s*Del\.?\s*Date\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s*$',
+                    'group': 1,
+                    'priority': 5,
+                },
+            ],
+            'customer_tel': [
+                {
+                    'name': 'Tel label exact',
+                    'regex': r'(?mi)^\s*Tel\s*[:\-]?\s*(\+?255\s?\d{3}\s?\d{3}\s?\d{3}|0[67]\d{2}\s?\d{3}\s?\d{3}|\+?\d{7,15})\s*$',
+                    'group': 1,
+                    'priority': 5,
+                },
+                {
+                    'name': 'Tel label TZ formats',
+                    'regex': r'(?:Tel|Telephone|Phone)[\s:]*(\+?255\s?\d{3}\s?\d{3}\s?\d{3}|0[67]\d{2}\s?\d{3}\s?\d{3}|\+?\d{7,15})',
+                    'group': 1,
+                    'priority': 10,
+                },
+            ],
+            'attended_by': [
+                {
+                    'name': 'Attended by label',
+                    'regex': r'(?mi)^\s*Attended\s*(?:by|By)\s*[:\-]?\s*([^\n]+?)\s*$',
+                    'group': 1,
+                    'priority': 5,
+                },
+            ],
             'plate_number': [
                 {
                     'name': 'Plate in reference field',
