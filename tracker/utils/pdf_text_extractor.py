@@ -283,90 +283,98 @@ def parse_invoice_data(text: str) -> dict:
         r'Total\s*(?::|\s)'
     ]))
 
-    # Extract line items
+    # Extract line items with improved detection
     items = []
     item_section_started = False
     item_header_idx = -1
-    skip_next = 0
 
     for idx, line in enumerate(lines):
-        if skip_next > 0:
-            skip_next -= 1
-            continue
-
         line_stripped = line.strip()
         if not line_stripped:
             continue
 
-        # Look for the table header with "Sr" "Item Code" "Description" etc
-        if re.search(r'\bSr\b.*\b(?:Item\s*Code|Code)\b.*\b(?:Description|Desc)\b', line_stripped, re.I) or \
-           re.search(r'\b(?:Description|Desc)\b.*\b(?:Qty|Quantity)\b.*\b(?:Rate|Price|Value|Amount)\b', line_stripped, re.I):
+        # Detect item section header more flexibly
+        # Look for lines containing multiple item-related keywords
+        keyword_count = sum([
+            1 if re.search(r'\b(?:Sr|S\.N|Serial)\b', line_stripped, re.I) else 0,
+            1 if re.search(r'\b(?:Item|Code)\b', line_stripped, re.I) else 0,
+            1 if re.search(r'\b(?:Description|Desc)\b', line_stripped, re.I) else 0,
+            1 if re.search(r'\b(?:Qty|Quantity)\b', line_stripped, re.I) else 0,
+            1 if re.search(r'\b(?:Rate|Price|Unit)\b', line_stripped, re.I) else 0,
+            1 if re.search(r'\b(?:Value|Amount)\b', line_stripped, re.I) else 0,
+        ])
+
+        if keyword_count >= 3:
             item_section_started = True
             item_header_idx = idx
             continue
 
-        # Stop when we hit the totals section
-        if item_section_started and re.search(r'(?:Net\s*Value|Gross\s*Value|Total|Payment|Delivery|Remarks|NOTE)', line_stripped, re.I):
-            break
+        # Stop at totals/summary section
+        if item_section_started and idx > item_header_idx + 1:
+            if re.search(r'(?:Net\s*Value|Gross\s*Value|Total|Payment|Delivery|Remarks|NOTE)', line_stripped, re.I):
+                break
 
-        # Parse data lines (after header, skip empty lines)
+        # Parse item lines
         if item_section_started and idx > item_header_idx:
-            # Look for lines with serial number or item code at start
-            # Format: Sr No. | Item Code | Description | Qty | Rate | Value
-
-            # Skip if line looks like a continuation of description (starts with many spaces or lowercase)
-            if line and line[0] in (' ', '\t') and not re.match(r'^\s*\d+\s+', line):
-                # This is a continuation line, check if we should append to last item
-                if items and len(line_stripped) > 2:
-                    # Append to last item's description
-                    items[-1]['description'] = items[-1]['description'] + ' ' + line_stripped
+            # Skip empty or obvious continuation lines
+            if not line_stripped or len(line_stripped) < 5:
                 continue
 
-            # Extract numbers from the line
+            # Check if this looks like a data line (contains numbers)
             numbers = re.findall(r'[0-9\,]+\.?\d*', line_stripped)
+            if len(numbers) < 1:
+                continue
 
-            # Should have at least 2 numbers (qty and value)
-            if len(numbers) >= 1 and len(line_stripped) > 5:
-                # Remove serial number if present (first number if < 100)
-                start_idx = 0
-                try:
-                    if numbers and int(numbers[0].replace(',', '').split('.')[0]) < 100:
+            # Skip if line starts with only whitespace (continuation)
+            if line and line[0] in (' ', '\t'):
+                if items and len(line_stripped) > 2:
+                    # Append to last item description
+                    items[-1]['description'] = (items[-1]['description'] + ' ' + line_stripped)[:255]
+                continue
+
+            # Try to identify serial number at start (if present, it's usually the first number and < 100)
+            start_idx = 0
+            try:
+                if len(numbers) > 0:
+                    first_num_val = float(numbers[0].replace(',', '').split('.')[0])
+                    if 1 <= first_num_val < 100:
                         start_idx = 1
+            except Exception:
+                pass
+
+            remaining_numbers = numbers[start_idx:]
+            if len(remaining_numbers) < 1:
+                continue
+
+            # Extract description by removing numbers from line
+            desc = re.sub(r'\s*[0-9\,]+\.?\d*\s*', ' | ', line_stripped)
+            desc_parts = [p.strip() for p in desc.split('|') if p.strip() and len(p.strip()) > 2]
+            desc = ' '.join(desc_parts)
+            desc = ' '.join(desc.split())  # Normalize whitespace
+
+            if not desc or len(desc) < 3:
+                continue
+
+            # Extract value (last number) and qty (second-to-last)
+            value = remaining_numbers[-1] if remaining_numbers else None
+            qty = 1
+
+            if len(remaining_numbers) >= 2:
+                try:
+                    qty_candidate = float(remaining_numbers[-2].replace(',', ''))
+                    # Check if it looks like a reasonable quantity (not a price)
+                    if 0.1 < qty_candidate < 10000:
+                        # If it has decimals, it's probably a price, not qty
+                        if '.' not in remaining_numbers[-2] or qty_candidate.is_integer():
+                            qty = int(qty_candidate) if qty_candidate.is_integer() else qty_candidate
                 except Exception:
                     pass
 
-                # Get remaining numbers after removing serial
-                remaining_numbers = numbers[start_idx:] if start_idx < len(numbers) else numbers
-
-                if len(remaining_numbers) >= 1:
-                    # Extract description by removing numbers from line
-                    desc = re.sub(r'[0-9\,]+\.?\d*', '|', line_stripped)
-                    desc_parts = [p.strip() for p in desc.split('|') if p.strip()]
-                    desc = ' '.join(desc_parts) if desc_parts else ''
-
-                    # Clean description
-                    desc = ' '.join(desc.split())
-
-                    if desc and len(desc) > 2:
-                        # Last number is typically the value/amount
-                        value = remaining_numbers[-1] if remaining_numbers else None
-
-                        # Qty is typically a small integer, look for it
-                        qty = 1
-                        if len(remaining_numbers) >= 2:
-                            try:
-                                # Check second to last as qty
-                                qty_candidate = int(float(remaining_numbers[-2].replace(',', '')))
-                                if 0 < qty_candidate < 1000:
-                                    qty = qty_candidate
-                            except Exception:
-                                pass
-
-                        items.append({
-                            'description': desc[:255],
-                            'qty': qty,
-                            'value': to_decimal(value)
-                        })
+            items.append({
+                'description': desc[:255],
+                'qty': qty if isinstance(qty, int) else int(qty) if isinstance(qty, float) and qty.is_integer() else qty,
+                'value': to_decimal(value)
+            })
 
     return {
         'invoice_no': invoice_no,
