@@ -232,31 +232,56 @@ def parse_invoice_data(text: str) -> dict:
     def to_decimal(s):
         try:
             if s:
-                # Remove currency symbols and clean
+                # Remove currency symbols and extra characters, keep only numbers, dot, comma
                 cleaned = re.sub(r'[^\d\.\,\-]', '', str(s)).strip()
-                if cleaned:
+                if cleaned and cleaned not in ('.', ',', '-'):
                     return Decimal(cleaned.replace(',', ''))
         except Exception:
             pass
         return None
 
+    # Extract monetary amounts using flexible patterns
+    def find_amount(label_patterns):
+        """Find monetary amount after label patterns"""
+        patterns = (label_patterns if isinstance(label_patterns, list) else [label_patterns])
+        for pattern in patterns:
+            # Try with colon
+            m = re.search(rf'{pattern}\s*:\s*(?:TSH|TZS|UGX)?\s*([0-9\,\.]+)', normalized_text, re.I | re.MULTILINE)
+            if m:
+                return m.group(1)
+            # Try with equals
+            m = re.search(rf'{pattern}\s*=\s*(?:TSH|TZS|UGX)?\s*([0-9\,\.]+)', normalized_text, re.I | re.MULTILINE)
+            if m:
+                return m.group(1)
+            # Try with just space
+            m = re.search(rf'{pattern}\s+(?:TSH|TZS|UGX)?\s*([0-9\,\.]+)', normalized_text, re.I | re.MULTILINE)
+            if m:
+                return m.group(1)
+        return None
+
     # Extract Net Value / Subtotal
-    subtotal = None
-    net_match = re.search(r'Net\s*(?:Value|Amount)\s*[:=\s]\s*([0-9\,\.]+)', normalized_text, re.I | re.MULTILINE)
-    if net_match:
-        subtotal = to_decimal(net_match.group(1))
+    subtotal = to_decimal(find_amount([
+        r'Net\s*Value',
+        r'Net\s*Amount',
+        r'Subtotal',
+        r'Net\s*:'
+    ]))
 
     # Extract VAT / Tax
-    tax = None
-    vat_match = re.search(r'VAT\s*[:=\s]\s*([0-9\,\.]+)', normalized_text, re.I | re.MULTILINE)
-    if vat_match:
-        tax = to_decimal(vat_match.group(1))
+    tax = to_decimal(find_amount([
+        r'VAT',
+        r'Tax',
+        r'GST',
+        r'Sales\s*Tax'
+    ]))
 
     # Extract Gross Value / Total
-    total = None
-    gross_match = re.search(r'Gross\s*Value\s*[:=\s]*(?:TSH)?\s*([0-9\,\.]+)', normalized_text, re.I | re.MULTILINE)
-    if gross_match:
-        total = to_decimal(gross_match.group(1))
+    total = to_decimal(find_amount([
+        r'Gross\s*Value',
+        r'Total\s*Amount',
+        r'Grand\s*Total',
+        r'Total\s*(?::|\s)'
+    ]))
 
     # Extract line items
     items = []
