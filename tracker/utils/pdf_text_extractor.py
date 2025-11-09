@@ -362,17 +362,18 @@ def parse_invoice_data(text: str) -> dict:
 
     # Extract Date (multiple formats)
     date_str = None
-    # Look for date patterns
+    # Look for date patterns - prioritize those near labels
     date_patterns = [
-        r'Date\s*[:=]?\s*(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})',
-        r'Invoice\s*Date\s*[:=]?\s*(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})',
-        r'(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})',  # Fallback: any date pattern
+        (r'(?:Invoice\s*)?Date\s*[:=]?\s*(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})', True),  # "Date: DD/MM/YYYY"
+        (r'(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})', False),  # Any date pattern (fallback)
     ]
-    for pattern in date_patterns:
+
+    for pattern, is_priority in date_patterns:
         m = re.search(pattern, normalized_text, re.I)
         if m:
             date_str = m.group(1)
-            break
+            if is_priority:
+                break
 
     # Parse monetary values helper
     def to_decimal(s):
