@@ -92,12 +92,13 @@ def parse_invoice_data(text: str) -> dict:
     It's designed to work with professional invoice formats, especially:
     - Pro forma invoices with Code No, Customer Name, Address, Tel, Reference
     - Traditional invoices with Invoice Number, Date, Customer, etc.
+    - Proforma invoices from suppliers (like Superdoll) with columnar line items
 
     Args:
         text: Raw extracted text from PDF/image
 
     Returns:
-        dict with extracted invoice data
+        dict with extracted invoice data including full customer info, line items, and payment details
     """
     if not text or not text.strip():
         return {
@@ -112,18 +113,23 @@ def parse_invoice_data(text: str) -> dict:
             'subtotal': None,
             'tax': None,
             'total': None,
-            'items': []
+            'items': [],
+            'payment_method': None,
+            'delivery_terms': None,
+            'remarks': None,
+            'attended_by': None,
+            'kind_attention': None
         }
 
     normalized_text = text.strip()
     lines = normalized_text.split('\n')
 
-    # Clean and normalize lines
+    # Clean and normalize lines - keep all non-empty lines for better context
     cleaned_lines = []
     for line in lines:
         cleaned = line.strip()
-        # Merge lines that are continuations (very short or just whitespace)
-        if cleaned and len(cleaned) > 2:
+        # Keep all meaningful lines (not just long ones)
+        if cleaned:
             cleaned_lines.append(cleaned)
 
     # Helper to find field value - try multiple strategies including searching ahead
