@@ -444,21 +444,47 @@ def parse_invoice_data(text: str) -> dict:
     # Pattern 2: If P.O.BOX not found, look for explicit address patterns
     if not address:
         for idx, line in enumerate(lines):
-            # Look for city names followed by country
-            if re.search(r'\b(DAR|DAR-ES-SALAAM|NAIROBI|KAMPALA)\b', line, re.I):
-                address_parts = [line]
-                # Check next line(s) for country or additional address
-                for j in range(idx + 1, min(idx + 3, len(lines))):
+            # Look for "Address:" or similar label
+            if re.search(r'Address\s*[:=]?\s*', line, re.I):
+                # Extract what comes after Address label on same line or next lines
+                match = re.search(r'Address\s*[:=]?\s*([^\n]*)', line, re.I)
+                address_parts = []
+                if match and match.group(1).strip():
+                    address_parts.append(match.group(1).strip())
+
+                # Collect following lines until we hit a label
+                for j in range(idx + 1, min(idx + 5, len(lines))):
                     next_line = lines[j].strip()
-                    if re.search(r'\b(TANZANIA|KENYA|UGANDA|RWANDA|BURUNDI)\b', next_line, re.I):
-                        address_parts.append(next_line)
+
+                    # Stop at field labels
+                    if not next_line or re.match(r'^(?:Tel|Fax|Attended|Kind|Reference|PI|Code|Type|Date|Email|Phone|Del|Customer|Remarks|Payment|Delivery)', next_line, re.I):
                         break
-                    elif len(next_line) > 2 and not re.match(r'^(?:Tel|Fax|Email|Phone)', next_line, re.I):
-                        address_parts.append(next_line)
+
+                    address_parts.append(next_line)
+
+                if address_parts:
+                    address = ' '.join(address_parts).strip()
+                    if address:
                         break
-                address = ' '.join(address_parts).strip()
-                if address:
-                    break
+
+        # Fallback: Look for city names followed by country if still no address
+        if not address:
+            for idx, line in enumerate(lines):
+                # Look for city names followed by country
+                if re.search(r'\b(DAR|DAR-ES-SALAAM|NAIROBI|KAMPALA)\b', line, re.I):
+                    address_parts = [line]
+                    # Check next line(s) for country or additional address
+                    for j in range(idx + 1, min(idx + 3, len(lines))):
+                        next_line = lines[j].strip()
+                        if re.search(r'\b(TANZANIA|KENYA|UGANDA|RWANDA|BURUNDI)\b', next_line, re.I):
+                            address_parts.append(next_line)
+                            break
+                        elif len(next_line) > 2 and not re.match(r'^(?:Tel|Fax|Email|Phone|Address|Reference|Code|Type|Date)', next_line, re.I):
+                            address_parts.append(next_line)
+                            break
+                    address = ' '.join(address_parts).strip()
+                    if address:
+                        break
 
     # Smart fix: If customer_name is empty but address looks like it contains the name
     # Try to split the address and extract name from first line
