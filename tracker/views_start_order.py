@@ -118,11 +118,14 @@ def api_start_order(request):
                         customer_type='personal',
                     )
                 except Exception:
-                    # Fallback if service fails
+                    # Fallback if service fails - use get_or_create with unique constraint fields
                     customer, _ = Customer.objects.get_or_create(
                         branch=user_branch,
+                        full_name=f"Plate {plate_number}",
                         phone=f"PLATE_{plate_number}",
-                        defaults={'full_name': f'Plate {plate_number}', 'customer_type': 'personal'}
+                        organization_name=None,
+                        tax_number=None,
+                        defaults={'customer_type': 'personal'}
                     )
 
                 vehicle = VehicleService.create_or_get_vehicle(
