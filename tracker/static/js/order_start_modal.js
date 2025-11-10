@@ -275,16 +275,16 @@ class OrderStartModal {
     const formData = new FormData(formElement);
 
     // Add custom data
-    formData.append('customer_name', document.querySelector('input[name="extracted_customer_name"]').value);
-    formData.append('phone', document.querySelector('input[name="extracted_phone"]').value);
-    formData.append('email', document.querySelector('input[name="extracted_email"]').value || '');
-    formData.append('address', document.querySelector('textarea[name="extracted_address"]').value || '');
-    formData.append('description', document.querySelector('textarea[name="extracted_description"]').value || '');
-    formData.append('estimated_duration', document.querySelector('input[name="extracted_duration"]').value || '');
-    formData.append('priority', document.querySelector('select[name="extracted_priority"]').value || 'medium');
-    formData.append('plate_number', document.querySelector('input[name="extracted_plate"]').value || '');
-    formData.append('vehicle_make', document.querySelector('input[name="extracted_make"]').value || '');
-    formData.append('vehicle_model', document.querySelector('input[name="extracted_model"]').value || '');
+    formData.set('customer_name', document.querySelector('input[name="extracted_customer_name"]').value);
+    formData.set('phone', document.querySelector('input[name="extracted_phone"]').value);
+    formData.set('email', document.querySelector('input[name="extracted_email"]').value || '');
+    formData.set('address', document.querySelector('textarea[name="extracted_address"]').value || '');
+    formData.set('description', document.querySelector('textarea[name="extracted_description"]').value || '');
+    formData.set('estimated_duration', document.querySelector('input[name="extracted_duration"]').value || '');
+    formData.set('priority', document.querySelector('select[name="extracted_priority"]').value || 'medium');
+    formData.set('plate_number', document.querySelector('input[name="extracted_plate"]').value || '');
+    formData.set('vehicle_make', document.querySelector('input[name="extracted_make"]').value || '');
+    formData.set('vehicle_model', document.querySelector('input[name="extracted_model"]').value || '');
 
     // Show loading state
     const submitBtn = document.getElementById('submitBtn');
@@ -295,29 +295,26 @@ class OrderStartModal {
     // Submit to server
     fetch('/api/orders/create-from-modal/', {
       method: 'POST',
-      body: formData,
-      headers: {
-        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-      }
+      body: formData
     })
     .then(response => response.json())
     .then(data => {
       if (data.success) {
         // Show success message
         this.showSuccessMessage('Order created successfully!');
-        
+
         // Redirect or close modal
         setTimeout(() => {
-          window.location.href = `/tracker/orders/${data.order_id}/`;
+          window.location.href = `/tracker/orders/started/${data.order_id}/`;
         }, 1500);
       } else {
-        this.showError('orderStartForm', data.error || 'Failed to create order');
+        this.showError('extractedDataError', data.error || 'Failed to create order');
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
       }
     })
     .catch(error => {
-      this.showError('orderStartForm', 'An error occurred: ' + error.message);
+      this.showError('extractedDataError', 'An error occurred: ' + error.message);
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalText;
     });
