@@ -285,6 +285,14 @@ def api_upload_extract_invoice(request):
         inv.remarks = (header.get('remarks') or '').strip() or None
         inv.notes = (header.get('notes') or '').strip() or ''
 
+        # Seller information (do not map seller into customer)
+        inv.seller_name = (header.get('seller_name') or '').strip() or None
+        inv.seller_address = (header.get('seller_address') or '').strip() or None
+        inv.seller_phone = (header.get('seller_phone') or '').strip() or None
+        inv.seller_email = (header.get('seller_email') or '').strip() or None
+        inv.seller_tax_id = (header.get('seller_tax_id') or '').strip() or None
+        inv.seller_vat_reg = (header.get('seller_vat_reg') or '').strip() or None
+
         # Set monetary fields with proper defaults (use correct field names from extraction)
         inv.subtotal = header.get('subtotal') or Decimal('0')
         inv.tax_amount = header.get('tax') or Decimal('0')
