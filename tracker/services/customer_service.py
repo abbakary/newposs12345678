@@ -80,6 +80,7 @@ class CustomerService:
     ) -> Tuple[Customer, bool]:
         """
         Create or get a customer with proper deduplication.
+        If customer exists, updates contact information (address, email, whatsapp).
 
         Args:
             branch: User's branch
@@ -117,6 +118,21 @@ class CustomerService:
         )
 
         if existing:
+            # Customer already exists - update contact info if provided
+            updated = False
+            if address and address.strip() and (not existing.address or existing.address != address):
+                existing.address = address
+                updated = True
+            if email and email.strip() and (not existing.email or existing.email != email):
+                existing.email = email
+                updated = True
+            if whatsapp and whatsapp.strip() and (not existing.whatsapp or existing.whatsapp != whatsapp):
+                existing.whatsapp = whatsapp
+                updated = True
+
+            if updated:
+                existing.save(update_fields=['address', 'email', 'whatsapp'])
+
             return existing, False
 
         if not create_if_missing:
@@ -155,6 +171,21 @@ class CustomerService:
                 customer_type=customer_type
             )
             if existing:
+                # Update contact info for the found customer
+                updated = False
+                if address and address.strip() and (not existing.address or existing.address != address):
+                    existing.address = address
+                    updated = True
+                if email and email.strip() and (not existing.email or existing.email != email):
+                    existing.email = email
+                    updated = True
+                if whatsapp and whatsapp.strip() and (not existing.whatsapp or existing.whatsapp != whatsapp):
+                    existing.whatsapp = whatsapp
+                    updated = True
+
+                if updated:
+                    existing.save(update_fields=['address', 'email', 'whatsapp'])
+
                 return existing, False
             raise
 

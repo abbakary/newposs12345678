@@ -342,55 +342,93 @@ def api_upload_extract_invoice(request):
 
         # Aggregate duplicate line items by code (fallback to description) before creation
         def _aggregate_items(items_list):
+            """Aggregate duplicate items by code/description to prevent duplicates.
+
+            Handles cases where the same item appears multiple times in extraction,
+            combining quantities and preserving pricing information.
+            """
             bucket = {}
             for it in items_list:
+                # Normalize description and code
                 desc = (it.get('description') or 'Item').strip()
                 code = (it.get('item_code') or it.get('code') or '').strip()
-                key = code or desc.lower()
+
+                # Create a unique key: prefer code, fallback to normalized description
+                # Normalize description by converting to lowercase and removing extra spaces
+                desc_normalized = ' '.join(desc.lower().split())
+                key = code if code else desc_normalized
+
+                # Parse numeric values safely
                 try:
                     qty = Decimal(str(it.get('qty') or 1))
-                except Exception:
+                except (ValueError, TypeError, Exception):
                     qty = Decimal('1')
+
                 unit = (it.get('unit') or '').strip() or None
-                # Prefer provided unit price (rate); fallback to total value per qty
+
+                # Extract pricing: prefer rate (unit price), fallback to value
                 rate = it.get('rate')
+                value = it.get('value')
+
                 try:
-                    value = Decimal(str(it.get('value'))) if it.get('value') is not None else None
-                except Exception:
+                    if rate:
+                        rate = Decimal(str(rate))
+                    else:
+                        rate = None
+                except (ValueError, TypeError, Exception):
+                    rate = None
+
+                try:
+                    if value is not None:
+                        value = Decimal(str(value))
+                    else:
+                        value = None
+                except (ValueError, TypeError, Exception):
                     value = None
+
+                # Initialize or update bucket entry
                 if key not in bucket:
                     bucket[key] = {
                         'code': code or None,
                         'description': desc,
                         'qty': Decimal('0'),
                         'unit': unit,
-                        'rate_pref': rate,
-                        'value_sum': Decimal('0')
+                        'rates': [],  # Track all rates for averaging
+                        'values': []  # Track all values for summing
                     }
+
+                # Accumulate quantities and values
                 bucket[key]['qty'] += qty
-                if not bucket[key]['unit'] and unit:
+                if unit and not bucket[key]['unit']:
                     bucket[key]['unit'] = unit
-                if value is not None:
-                    bucket[key]['value_sum'] += value
+                if rate:
+                    bucket[key]['rates'].append(rate)
+                if value:
+                    bucket[key]['values'].append(value)
+
+            # Build final items list
             out = []
             for v in bucket.values():
-                qty = v['qty'] if v['qty'] > 0 else Decimal('1')
-                # Determine unit price
-                unit_price = None
-                if v['rate_pref'] is not None:
-                    try:
-                        unit_price = Decimal(str(v['rate_pref']))
-                    except Exception:
-                        unit_price = None
-                if unit_price is None:
-                    unit_price = (v['value_sum'] / qty) if v['value_sum'] else Decimal('0')
+                final_qty = v['qty'] if v['qty'] > 0 else Decimal('1')
+
+                # Calculate unit price: prefer average of rates, fallback to calculated from values
+                unit_price = Decimal('0')
+                if v['rates']:
+                    # Average of all provided rates
+                    unit_price = sum(v['rates']) / len(v['rates'])
+                elif v['values']:
+                    # Calculate from total value / quantity
+                    total_value = sum(v['values'])
+                    unit_price = total_value / final_qty if final_qty > 0 else Decimal('0')
+
                 out.append({
                     'code': v['code'],
                     'description': v['description'],
-                    'qty': qty,
+                    'qty': final_qty,
                     'unit': v['unit'],
                     'unit_price': unit_price,
                 })
+
             return out
 
         aggregated = _aggregate_items(items) if items else []
@@ -408,10 +446,11 @@ def api_upload_extract_invoice(request):
             except Exception as e:
                 logger.warning(f"Failed to create invoice line item from aggregated {it}: {e}")
 
-        # Recalculate totals only if we have line items
-        # If no line items were created from extraction, preserve the extracted totals
-        if inv.line_items.exists():
-            inv.calculate_totals()
+        # IMPORTANT: For uploaded invoices, preserve the extracted Net Value, VAT, and Gross Value
+        # DO NOT recalculate totals from line items
+        # Line items are created for reference/detail, but the invoice totals come from the extracted document
+        # The extracted subtotal, tax_amount, and total_amount were already set above (lines 308-337)
+        # We save without recalculating to maintain the accuracy of the extracted values
         inv.save()
 
         # Create payment record for tracking
