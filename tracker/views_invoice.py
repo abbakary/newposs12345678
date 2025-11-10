@@ -645,6 +645,16 @@ def invoice_create(request, order_id=None):
                         logger.warning(f"Failed to create order while creating invoice: {e}")
                         order = None
 
+            # Enforce one invoice per order
+            if order:
+                try:
+                    existing_inv = Invoice.objects.filter(order=order).first()
+                except Exception:
+                    existing_inv = None
+                if existing_inv:
+                    messages.info(request, f'Invoice {existing_inv.invoice_number} already exists for this order.')
+                    return redirect('tracker:invoice_detail', pk=existing_inv.pk)
+
             invoice = form.save(commit=False)
             invoice.branch = user_branch
             if order:
