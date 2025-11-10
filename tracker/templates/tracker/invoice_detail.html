@@ -153,6 +153,25 @@
     </div>
   </div>
 
+  {% if invoice.document %}
+  <div class="row mt-3">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="fa fa-paperclip me-2"></i>Uploaded Invoice Document</h6>
+          <div class="btn-group btn-group-sm">
+            <a href="{% url 'tracker:invoice_document_view' pk=invoice.id %}" target="_blank" class="btn btn-outline-secondary"><i class="fa fa-eye me-1"></i>View Inline</a>
+            <a href="{% url 'tracker:invoice_document_download' pk=invoice.id %}" class="btn btn-outline-dark"><i class="fa fa-download me-1"></i>Download</a>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-light mb-0"><i class="fa fa-info-circle me-2"></i>The original uploaded invoice file is attached to this invoice.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Line Items Section -->
   <div class="row mt-3">
     <div class="col-12">
