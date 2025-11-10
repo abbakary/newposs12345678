@@ -461,6 +461,9 @@ class Invoice(models.Model):
     seller_tax_id = models.CharField(max_length=64, blank=True, null=True)
     seller_vat_reg = models.CharField(max_length=64, blank=True, null=True)
 
+    # Document storage (uploaded invoice file)
+    document = models.FileField(upload_to='invoices/', blank=True, null=True, help_text="Uploaded invoice document (PDF, image, etc.)")
+
     # Tracking
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='invoices_created')
     created_at = models.DateTimeField(auto_now_add=True)
