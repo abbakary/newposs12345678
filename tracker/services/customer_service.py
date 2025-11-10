@@ -40,25 +40,38 @@ class CustomerService:
         """
         Find existing customer matching the given criteria.
         Uses database unique constraint: (branch, full_name, phone, organization_name, tax_number)
+        Normalizes phone numbers for comparison.
         Returns the matching customer if found, None otherwise.
         """
         if not branch or not full_name or not phone:
             return None
 
         try:
-            # Match the database unique constraint exactly
-            query = Customer.objects.filter(
+            # Normalize phone for comparison
+            normalized_phone = CustomerService.normalize_phone(phone)
+
+            # Get all potential matches by name and branch
+            candidates = Customer.objects.filter(
                 branch=branch,
                 full_name__iexact=full_name,
-                phone=phone,
-                organization_name=organization_name or '',
-                tax_number=tax_number or '',
             )
 
-            if customer_type:
-                query = query.filter(customer_type=customer_type)
+            # Check each candidate for phone match (handling normalized numbers)
+            for candidate in candidates:
+                candidate_phone = CustomerService.normalize_phone(candidate.phone or '')
 
-            return query.first()
+                # Match phone (normalized), organization_name, and tax_number
+                org_match = (organization_name or '') == (candidate.organization_name or '')
+                tax_match = (tax_number or '') == (candidate.tax_number or '')
+                phone_match = normalized_phone == candidate_phone
+
+                if phone_match and org_match and tax_match:
+                    # If customer_type is specified, it must also match
+                    if customer_type and candidate.customer_type != customer_type:
+                        continue
+                    return candidate
+
+            return None
         except Exception as e:
             logger.warning(f"Error finding duplicate customer: {e}")
             return None
