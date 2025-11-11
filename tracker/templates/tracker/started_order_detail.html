@@ -977,6 +977,14 @@
                   const customerAddressField = manualForm.querySelector('input[name="customer_address"]');
                   if (customerAddressField) customerAddressField.value = header.address || '';
 
+                  // Populate customer type (default to personal if not specified)
+                  const customerTypeField = manualForm.querySelector('select[name="customer_type"]');
+                  if (customerTypeField) {
+                    customerTypeField.value = header.customer_type || 'personal';
+                    // Trigger change event to update subtype visibility
+                    customerTypeField.dispatchEvent(new Event('change'));
+                  }
+
                   // Populate invoice fields
                   const invoiceNumberField = manualForm.querySelector('input[name="invoice_number"]');
                   if (invoiceNumberField) invoiceNumberField.value = header.invoice_no || header.code_no || '';
