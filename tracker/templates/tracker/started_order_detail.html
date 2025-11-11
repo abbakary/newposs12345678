@@ -830,51 +830,77 @@
 
               function showExtractedDataPreview(header, items){
                 // Customer Information
-                document.getElementById('previewCustomerName').textContent = header.customer_name || '-';
-                document.getElementById('previewCustomerPhone').textContent = header.phone || '-';
-                document.getElementById('previewCustomerEmail').textContent = header.email || '-';
-                document.getElementById('previewCustomerAddress').textContent = header.address || '-';
+                const el1 = document.getElementById('previewCustomerName');
+                if (el1) el1.textContent = header.customer_name || '-';
+
+                const el2 = document.getElementById('previewCustomerPhone');
+                if (el2) el2.textContent = header.phone || '-';
+
+                const el3 = document.getElementById('previewCustomerEmail');
+                if (el3) el3.textContent = header.email || '-';
+
+                const el4 = document.getElementById('previewCustomerAddress');
+                if (el4) el4.textContent = header.address || '-';
 
                 // Invoice Information
-                document.getElementById('previewInvoiceNo').textContent = header.invoice_no || '-';
-                document.getElementById('previewInvoiceDate').textContent = header.date || '-';
-                document.getElementById('previewCodeNo').textContent = header.code_no || header.reference || '-';
+                const el5 = document.getElementById('previewInvoiceNo');
+                if (el5) el5.textContent = header.invoice_no || '-';
+
+                const el6 = document.getElementById('previewInvoiceDate');
+                if (el6) el6.textContent = header.date || '-';
+
+                const el7 = document.getElementById('previewCodeNo');
+                if (el7) el7.textContent = header.code_no || header.reference || '-';
 
                 // Line Items
                 const itemsContainer = document.getElementById('previewLineItems');
-                if (items && items.length > 0) {
-                  itemsContainer.innerHTML = items.map((item, idx) => `
-                    <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
-                      <div>
-                        <strong>${item.description || '-'}</strong><br>
-                        <small class="text-muted">Qty: ${item.qty || 1}</small>
+                if (itemsContainer) {
+                  if (items && items.length > 0) {
+                    itemsContainer.innerHTML = items.map((item, idx) => `
+                      <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                        <div>
+                          <strong>${item.description || '-'}</strong><br>
+                          <small class="text-muted">Qty: ${item.qty || 1}</small>
+                        </div>
+                        <div class="text-end">
+                          <strong>${(item.value || 0).toLocaleString()}</strong>
+                        </div>
                       </div>
-                      <div class="text-end">
-                        <strong>${(item.value || 0).toLocaleString()}</strong>
-                      </div>
-                    </div>
-                  `).join('');
-                } else {
-                  itemsContainer.innerHTML = '<p class="text-muted">-</p>';
+                    `).join('');
+                  } else {
+                    itemsContainer.innerHTML = '<p class="text-muted">-</p>';
+                  }
                 }
 
                 // Payment Information
-                document.getElementById('previewSubtotal').textContent = (header.subtotal || 0).toLocaleString();
-                document.getElementById('previewTax').textContent = (header.tax || 0).toLocaleString();
-                document.getElementById('previewTotal').textContent = (header.total || 0).toLocaleString();
+                const el8 = document.getElementById('previewSubtotal');
+                if (el8) el8.textContent = (header.subtotal || 0).toLocaleString();
+
+                const el9 = document.getElementById('previewTax');
+                if (el9) el9.textContent = (header.tax || 0).toLocaleString();
+
+                const el10 = document.getElementById('previewTotal');
+                if (el10) el10.textContent = (header.total || 0).toLocaleString();
 
                 // Transaction Details
-                document.getElementById('previewPaymentMethod').textContent = header.payment_method || '-';
-                document.getElementById('previewDeliveryTerms').textContent = header.delivery_terms || '-';
+                const el11 = document.getElementById('previewPaymentMethod');
+                if (el11) el11.textContent = header.payment_method || '-';
+
+                const el12 = document.getElementById('previewDeliveryTerms');
+                if (el12) el12.textContent = header.delivery_terms || '-';
 
                 // Attendee Information
-                document.getElementById('previewAttendedBy').textContent = header.attended_by || '-';
-                document.getElementById('previewKindAttention').textContent = header.kind_attention || '-';
+                const el13 = document.getElementById('previewAttendedBy');
+                if (el13) el13.textContent = header.attended_by || '-';
+
+                const el14 = document.getElementById('previewKindAttention');
+                if (el14) el14.textContent = header.kind_attention || '-';
 
                 // Remarks
-                document.getElementById('previewRemarks').textContent = header.remarks || '-';
+                const el15 = document.getElementById('previewRemarks');
+                if (el15) el15.textContent = header.remarks || '-';
 
-                uploadedInvoicePreview.style.display = 'block';
+                if (uploadedInvoicePreview) uploadedInvoicePreview.style.display = 'block';
               }
 
               if (useExtractedDataBtn){
@@ -1305,7 +1331,7 @@
               <div>
                 <h6 class="mb-1"><i class="fa fa-file-pdf me-2" style="color: #dc3545;"></i>{{ doc.file_name }}</h6>
                 <small class="text-muted">
-                  {{ doc.document_type|upper }} • {{ doc.uploaded_at|date:"M d, Y H:i" }}
+                  {{ doc.document_type|upper }} �� {{ doc.uploaded_at|date:"M d, Y H:i" }}
                 </small>
               </div>
               <span class="badge bg-{% if doc.extraction_status == 'completed' %}success{% elif doc.extraction_status == 'processing' %}warning{% else %}danger{% endif %}">
